@@ -13,6 +13,7 @@ Este documento define el ADN técnico, los principios inquebrantables y los est�
 * **Despliegue:** Google Cloud Run (Despliegue unitario y autónomo por API/Agente).  
 * **Frameworks Core:** **Anti Gravity**, **Spec Kit**, **ADK** y SDK de **MCP** (Obligatorios para la estructura agéntica, especificaciones y exposición de herramientas).  
 * **IA & LLM:** Vertex AI SDK / Modelos Gemini (Invocados desde la configuración central).  
+* **Gemini SDK (Moderno 2026):** Es ESTRICTAMENTE OBLIGATORIO el uso del SDK **`google-genai` (v1.70.0+)** con el patrón Native (AI Studio) para toda operación de RAG, File Search Stores e indexado masivo. El uso de librerías antiguas (`google-generativeai`) o métodos legacy queda terminantemente prohibido bajo pena de falla de cumplimiento arquitectónico.
 * **Protocolos Agénticos:** Obligatorio el uso de **A2A (Agent-to-Agent)** para orquestación y **MCP (Model Context Protocol)** para herramientas.
 * **Autenticación:** **Google Auth** (Verificación de tokens de cuentas de Google/Firebase).  
 * **Testing:** Pytest.
@@ -164,7 +165,10 @@ Dado que el ecosistema agéntico es vulnerable a vectores de ataque basados en l
 
 * **Idioma de Código:** Inglés (Variables, Clases, Funciones).  
 * **Idioma de Comentarios/Docs:** **ESPAÑOL**.  
-* **Documentación Obligatoria (Docstrings):** **OBLIGATORIO** documentar mediante docstrings formales todos los archivos, módulos, clases y métodos en Python. Estas documentaciones deben especificar claramente el propósito del código, los parámetros de entrada y sus valores de retorno.
+* **Documentación Premium (Docstrings):** **OBLIGATORIO** implementar documentación de alto nivel mediante docstrings formales en todos los archivos, módulos, clases y métodos. 
+    1. **Idioma:** Siempre en **ESPAÑOL** profesional.
+    2. **Contenido:** Debe detallar el propósito de negocio, lógica técnica (si es compleja), descripción exhaustiva de parámetros y valores de retorno.
+    3. **Calidad:** Los docstrings deben permitir que un agente de IA o un desarrollador externo entienda la función sin leer el código fuente.
 * **Type Hinting:** 100% cobertura (mypy estricto).  
 * **Manejo de Errores (Crítico):**  
   * **Prohibido:** Retornar errores 500 genéricos no controlados o respuestas en texto plano.  
@@ -232,4 +236,4 @@ Para garantizar la mantenibilidad y la iteración rápida de la lógica de IA:
 4. **Estructura y Nomenclatura:** Dentro de `prompts/`, los archivos deben nombrarse de forma descriptiva (ej. `system_prompt.md`, `extraction_logic.md`).  
 5. **Inyección Dinámica:** El código Python debe cargar estos archivos Markdown y realizar las sustituciones de variables necesarias antes de enviarlos al modelo.
 
-**Version**: 1.5.0 | **Ratified**: 17 de marzo de 2026 | **Last Amended**: 25 de marzo de 2026
+**Version**: 1.5.1 | **Ratified**: 17 de marzo de 2026 | **Last Amended**: 1 de abril de 2026

@@ -4,25 +4,42 @@ from schemas.api_models import LocationCreate, LocationUpdate
 from main import create_location, update_location, delete_location, list_locations, search_locations
 import re
 
+"""
+Servidor MCP para la Gestión de Sucursales (Que Vino Locations MCP).
+Expone las capacidades de la Locations API como herramientas (Tools) 
+para agentes de IA, permitiendo la administración geográfica de la red.
+"""
+
 mcp = FastMCP("QueVinoLocations")
 
+# Clase auxiliar para simular peticiones HTTP desde el contexto de MCP
 class MockRequest:
     def __init__(self, action: str, path: str):
         self.method = action
         self.url = type('URL', (), {'path': path})()
+        # Identidad del agente para auditoría en el middleware de logs
         self.state = type('State', (), {'user': {'email': 'agent@mcp', 'uid': 'mcp-agent-001'}})()
 
 def sanitize_input(value: str) -> str:
-    """Basic SQL injection protection for MCP input strings per constitution."""
+    """
+    Sanitización de entradas para prevenir ataques de inyección SQL 
+    en las herramientas consumidas por agentes de IA.
+    """
     if value:
-        # Avoid semicolons, drop, select, insert, quotes
+        # Validación de patrones prohibidos según constitución
         if re.search(r"(;|--|\bDROP\b|\bSELECT\b|\bINSERT\b|\bUPDATE\b)", value, re.IGNORECASE):
-            raise ValueError("Invalid characters in string. SQL keywords are blocked.")
+            raise ValueError("Entrada inválida. Se detectaron palabras clave de SQL bloqueadas.")
     return value
 
 @mcp.tool()
 def create_location_tool(country_code: str, country_name: str, city_code: str, city_name: str) -> str:
-    """Creates a new location in Que Vino index."""
+    """
+    Crea una nueva ubicación física en el índice de Que Vino.
+    
+    Args:
+        country_code (str): Código ISO del país.
+        country_name (str): Nombre del país.
+    """
     try:
         loc = LocationCreate(
             country_code=sanitize_input(country_code),
@@ -32,51 +49,66 @@ def create_location_tool(country_code: str, country_name: str, city_code: str, c
         )
         req = MockRequest("POST", "/locations")
         res = create_location(loc, req)
-        return f"Success: {res}"
+        return f"Éxito: {res}"
     except Exception as e:
-        return f"Failed: {str(e)}"
+        return f"Error: {str(e)}"
 
 @mcp.tool()
 def update_location_tool(loc_id: str, city_name: str) -> str:
-    """Updates an existing location."""
+    """
+    Actualiza el nombre de la ciudad de una sucursal existente.
+    
+    Args:
+        loc_id (str): ID de la sucursal.
+        city_name (str): Nuevo nombre de la ciudad.
+    """
     try:
         loc_update = LocationUpdate(city_name=sanitize_input(city_name))
         req = MockRequest("PUT", f"/locations/{loc_id}")
         res = update_location(sanitize_input(loc_id), loc_update, req)
-        return f"Success: {res}"
+        return f"Éxito: {res}"
     except Exception as e:
-        return f"Failed: {str(e)}"
+        return f"Error: {str(e)}"
 
 @mcp.tool()
 def delete_location_tool(loc_id: str) -> str:
-    """Deletes an existing location from Que Vino index."""
+    """
+    Elimina una sucursal del índice de Que Vino.
+    
+    Args:
+        loc_id (str): ID de recurso de la sucursal.
+    """
     try:
         req = MockRequest("DELETE", f"/locations/{loc_id}")
         res = delete_location(sanitize_input(loc_id), req)
-        return f"Success: {res}"
+        return f"Éxito: {res}"
     except Exception as e:
-        return f"Failed: {str(e)}"
+        return f"Error: {str(e)}"
 
 @mcp.tool()
 def list_locations_tool(limit: int = 50, offset: int = 0) -> str:
-    """List locations pagination."""
+    """
+    Lista las sucursales de forma paginada para facilitar la navegación del agente.
+    """
     try:
         max_limit = min(limit, 100)
         res = list_locations(limit=max_limit, offset=offset)
-        return f"Results: {res}"
+        return f"Resultados: {res}"
     except Exception as e:
-        return f"Failed: {str(e)}"
+        return f"Error: {str(e)}"
 
 @mcp.tool()
 def search_locations_tool(term: str, limit: int = 50, offset: int = 0) -> str:
-    """Search locations by normalized name, city or country."""
+    """
+    Busca sucursales por término (ciudad o país) utilizando normalización.
+    """
     try:
         max_limit = min(limit, 100)
         safe_term = sanitize_input(term)
         res = search_locations(term=safe_term, limit=max_limit, offset=offset)
-        return f"Results: {res}"
+        return f"Resultados: {res}"
     except Exception as e:
-        return f"Failed: {str(e)}"
+        return f"Error: {str(e)}"
 
 if __name__ == "__main__":
     mcp.run()

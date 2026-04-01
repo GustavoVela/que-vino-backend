@@ -1,0 +1,122 @@
+openapi: 3.0.0
+info:
+  title: Que Vino Knowledge Stores API
+  version: 1.0.0
+  description: API para la gestión de repositorios de conocimiento (Knowledge Stores) sincronizados con GCS.
+
+paths:
+  /knowledge-stores:
+    get:
+      summary: Lista todos los repositorios de conocimiento activos en Gemini.
+      responses:
+        '200':
+          description: Lista de repositorios encontrados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KnowledgeStore'
+  
+  /knowledge-stores/{store_id}:
+    delete:
+      summary: Elimina un repositorio de conocimiento completo de Gemini.
+      parameters:
+        - name: store_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Repositorio eliminado.
+  
+  /knowledge-stores/{store_id}/files:
+    get:
+      summary: Lista todos los archivos (sin paginación para el cliente) de un repositorio.
+      parameters:
+        - name: store_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista completa de documentos en el repositorio.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KnowledgeDocument'
+
+  /knowledge-stores/{store_id}/files/{file_id}:
+    delete:
+      summary: Elimina un archivo específico de un repositorio en Gemini.
+      parameters:
+        - name: store_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Archivo eliminado.
+
+  /knowledge-stores/sync:
+    post:
+      summary: Sincroniza incrementalmente un bucket de GCS con Gemini.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - bucket_name
+              properties:
+                bucket_name:
+                  type: string
+                  example: "que-vino-databases/grapes"
+      responses:
+        '200':
+          description: Sincronización completada exitosamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "completed"
+                  summary:
+                    type: object
+                    properties:
+                      uploaded: { type: integer }
+                      skipped: { type: integer }
+                      deleted: { type: integer }
+                      errors: { type: integer }
+
+components:
+  schemas:
+    KnowledgeStore:
+      type: object
+      properties:
+        id: { type: string }
+        display_name: { type: string }
+        create_time: { type: string, format: date-time }
+        update_time: { type: string, format: date-time }
+    
+    KnowledgeDocument:
+      type: object
+      properties:
+        id: { type: string }
+        display_name: { type: string }
+        bucket_name: { type: string }
+        size_bytes: { type: integer }
+        upload_date: { type: string, format: date-time }

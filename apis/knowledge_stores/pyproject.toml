@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "que-vino-knowledge-stores"
+version = "0.1.0"
+description = "Microservice for managing RAG Knowledge Stores"
+authors = ["Antigravity <antigravity@google.com>"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.110.0"
+uvicorn = "^0.27.1"
+google-cloud-storage = "^2.14.0"
+google-cloud-bigquery = "^3.17.2"
+python-multipart = "^0.0.9"
+pydantic = "^2.6.3"
+pydantic-settings = "^2.2.1"
+pyjwt = "^2.8.0"
+cryptography = "^42.0.5"
+firebase-admin = "^6.5.0"
+mcp = "^1.2.0"
+google-genai = "^1.70.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.2"
+pytest-asyncio = "^0.23.5"
+httpx = "^0.28.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

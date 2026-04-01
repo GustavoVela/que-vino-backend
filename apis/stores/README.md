@@ -1,37 +1,52 @@
-# Que Vino!? Stores API
+# 🍷 Que Vino! - Stores API
 
-Microservicio y herramienta MCP para la indexación y búsqueda de tiendas, productores y clubes de vino. Expone tanto endpoints REST como herramientas de MCP para que los agentes inteligentes puedan consultar información sobre tiendas directamente.
+Microservicio de administración de tiendas, marcas y entidades legales del ecosistema **Que Vino!**.
 
-## 🚀 Arquitectura Local
+## 🚀 Despliegue en Producción
+*   **URL Base**: `https://que-vino-stores-9ebf32fb-b85f-43d4-b440-af3007c90f34.a.run.app`
+*   **Entorno**: Google Cloud Run (Serverless)
+*   **Base de Datos**: Google BigQuery (`src_database.stores`)
 
+## 🛠️ Herramientas para Agentes (MCP)
+Este microservicio expone un servidor **Model Context Protocol (MCP)** para permitir que agentes de IA gestionen el catálogo de tiendas de forma estructurada.
+*   **Herramientas**: `create_store_tool`, `update_store_tool`, `delete_store_tool`, `list_stores_tool`, `search_stores_tool`.
+
+## 📡 Endpoints y Ejemplos (cURL)
+
+> [!IMPORTANT]
+> Todas las peticiones requieren una cabecera `Authorization: Bearer <TOKEN>` válida.
+
+### 1. Listar Tiendas
+Obtiene el catálogo completo de tiendas con paginación.
 ```bash
-cd apis/stores
-poetry install
-poetry run uvicorn main:app --reload --port 8080
+curl -X GET "https://que-vino-stores-9ebf32fb-b85f-43d4-b440-af3007c90f34.a.run.app/stores?limit=10&offset=0" \
+     -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+     -H "Content-Type: application/json"
 ```
 
-## 🛠️ MCP Toolset (Model Context Protocol)
-
-Este servicio puede ser cargado como un servidor MCP para que IAs como Claude o Gemini puedan buscar tiendas:
-
+### 2. Buscar Tienda por Nombre
+Búsqueda optimizada con normalización de caracteres.
 ```bash
-cd apis/stores
-poetry run mcp dev mcp_server.py
+curl -X GET "https://que-vino-stores-9ebf32fb-b85f-43d4-b440-af3007c90f34.a.run.app/stores/search?name=Cava" \
+     -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+     -H "Content-Type: application/json"
 ```
 
-## 📦 Despliegue en Google Cloud
-
-Utiliza Cloud Build para crear la imagen de Docker y desplegarla en Cloud Run.
-
+### 3. Crear Nueva Tienda
+Registro de una marca o establecimiento en el ecosistema.
 ```bash
-gcloud builds submit --config apis/stores/deploy/cloudbuild.yaml .
+curl -X POST "https://que-vino-stores-9ebf32fb-b85f-43d4-b440-af3007c90f34.a.run.app/stores" \
+     -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "name": "Cava de Prova",
+       "type": "Retailer",
+       "is_producer": true,
+       "has_wine_club": false,
+       "country_code": "MX",
+       "city_name": "Ensenada"
+     }'
 ```
 
-La configuración por defecto es **max-instances=1** para controlar costes y escalado seguro en fases iniciales.
-
-## 🔒 Seguridad
-- **Auth**: Valida `Authorization: Bearer <ID_TOKEN>` de Firebase.
-- **Auditoría**: Todas las mutaciones (POST/PUT/DELETE) se registran en `src_api_transactions.stores_log`.
-
----
-© 2026 Que Vino!? - Cloud Run Managed Micro-Swarms
+## 📜 Auditoría y Transaccionalidad
+Todas las operaciones que modifican la base de datos son registradas automáticamente en la tabla de auditoría `src_api_transactions.stores_log` para fines de cumplimiento y rastreo.

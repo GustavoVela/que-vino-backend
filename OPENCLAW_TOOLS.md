@@ -1,118 +1,66 @@
 # Que Vino OPENCLAW API Inventory
 
-This document tracks all productive APIs and agents exposed in the `que-vino-backend` ecosystem for cross-reference.
+Este documento rastrea todas las APIs y agentes productivos expuestos en el ecosistema `que-vino-backend`. Es la fuente de verdad para que los agentes de IA descubran y utilicen herramientas.
 
-## APIs
+## APIs de Negocio
 
-### 1. Stores API
-- **Repository Path**: `apis/stores/`
-- **MCP Server Path**: `apis/stores/mcp_server.py`
-- **Security**: Requires Firebase Bearer Tokens
+### 1. Stores API (Gestión de Tiendas)
+- **URL Producción**: `https://quevino-stores-2lkhisz2aa-uc.a.run.app`
+- **Repositorio**: `apis/stores/`
+- **Uso**: Gestión centralizada de marcas y entidades legales de tiendas.
 
-#### 1.1 List Stores
-- **Method / Path**: `GET /stores`
-- **URL Parameters**: `limit=100`, `offset=0`
-- **Required Headers**: `Authorization: Bearer <ID_TOKEN>`
-- **Response**: Array of Store details.
-```json
-[
-  {
-    "id": "uuid-v4",
-    "name": "Vinoteca Nacional",
-    "type": "Retail",
-    "country_code": "MX",
-    "country_name": "México",
-...
-```
+#### 1.1 Listar Tiendas
+- **GET** `/stores`
+- **Params**: `limit`, `offset`
+- **Ejemplo**: `curl -H "Authorization: Bearer <TOKEN>" "https://quevino-stores-2lkhisz2aa-uc.a.run.app/stores"`
 
-#### 1.2 Create Store
-- **Method / Path**: `POST /stores`
-- **Required Headers**: `Authorization: Bearer <ID_TOKEN>`
-- **Request Body** (`StoreCreate`):
-```json
-{
-  "name": "Cava de Vinos",
-  "type": "Tienda Especializada",
-  "digital_platform": "Shopify",
-  "is_producer": false,
-  "has_wine_club": true,
-  "representative_name": "Juan Perez",
-  "country_code": "MX",
-  "country_name": "México",
-  "state_code": "CDMX",
-  "state_name": "Ciudad de México",
-  "city_code": "MEX",
-  "city_name": "Ciudad de México",
-  "address": "Av. Reforma 123",
-  "contact_email": "hola@cavadevinos.com",
-  "contact_phone": "+525512345678",
-  "website_url": "https://cavadevinos.com",
-  "social_media": {"instagram": "@cava_vinos"},
-  "description": "Tienda especialista en vinos naturales"
-}
-```
-- **Response** `201 Created`: The created store object including `id`, `created_at`, `updated_at`.
-
-#### 1.3 Search Stores
-- **Method / Path**: `GET /stores/search`
-- **URL Parameters**: `city_code` (str), `country_code` (str), `limit=100`, `offset=0`
-- **Response**: Filtered Array of Store objects.
-
+#### 1.2 Búsqueda Semántica/Nombre
+- **GET** `/stores/search`
+- **Params**: `name` (Requerido)
+- **Ejemplo**: `curl -H "Authorization: Bearer <TOKEN>" "https://quevino-stores-2lkhisz2aa-uc.a.run.app/stores/search?name=Vinoteca"`
 
 ---
 
-### 2. Locations API
-- **Repository Path**: `apis/locations/`
-- **MCP Server Path**: `apis/locations/mcp_server.py`
-- **Security**: Requires Firebase Bearer Tokens
+### 2. Locations API (Gestión de Sucursales)
+- **URL Producción**: `https://quevino-locations-2lkhisz2aa-uc.a.run.app`
+- **Repositorio**: `apis/locations/`
+- **Uso**: Gestión de puntos de venta físicos, geolocalización y horarios.
 
-#### 2.1 List Locations
-- **Method / Path**: `GET /locations`
-- **URL Parameters**: `limit=100`, `offset=0`
-- **Required Headers**: `Authorization: Bearer <ID_TOKEN>`
-- **Response**:
-```json
-[
-  {
-    "id": "uuid-v4",
-    "country_code": "CO",
-    "country_name": "Colombia",
-    "state_code": "DC",
-    "state_name": "Bogotá D.C.",
-    "city_code": "BOG",
-    "city_name": "Bogotá",
-    "latitude": 4.6533817,
-    "longitude": -74.0836331,
-    "created_at": "2026-03-29T10:00:00Z",
-    "updated_at": "2026-03-29T10:00:00Z"
-  }
-]
-```
+#### 2.1 Listar Sucursales
+- **GET** `/locations`
+- **Ejemplo**: `curl -H "Authorization: Bearer <TOKEN>" "https://quevino-locations-2lkhisz2aa-uc.a.run.app/locations"`
 
-#### 2.2 Create Location
-- **Method / Path**: `POST /locations`
-- **Required Headers**: `Authorization: Bearer <ID_TOKEN>`
-- **Request Body** (`LocationCreate`):
-```json
-{
-  "country_code": "FR",
-  "country_name": "France",
-  "state_code": "BCA",
-  "state_name": "Bordeaux",
-  "city_code": "BX",
-  "city_name": "Bordeaux",
-  "latitude": 44.837789,
-  "longitude": -0.57918
-}
-```
-- **Response** `201 Created`: The created location object including automatic `id`, `created_at`.
+#### 2.2 Crear Sucursal
+- **POST** `/locations`
+- **Body**: `{"name": "...", "store_id": "...", "latitude": ..., "longitude": ...}`
 
-#### 2.3 Search Locations
-- **Method / Path**: `GET /locations/search`
-- **URL Parameters**: `country_code` (str), `state_code` (str), `limit=100`, `offset=0`
-- **Response**: Array of locations that match exact filters.
+---
 
-#### 2.4 Delete Locations
-- **Method / Path**: `DELETE /locations/{id}`
-- **Required Headers**: `Authorization: Bearer <ID_TOKEN>`
-- **Response**: `{ "detail": "Location deleted successfully" }`
+### 3. Knowledge Stores API (RAG & IA)
+- **URL Producción**: `https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app`
+- **Repositorio**: `apis/knowledge_stores/`
+- **SDK**: **Gemini GenAI Native (v1.70.0+)**
+- **Uso**: Sincronización de bases de conocimiento desde GCS hacia Gemini para búsqueda semántica.
+
+#### 3.1 Sincronizar Base de Conocimiento (Mirroring)
+- **POST** `/sync-bucket`
+- **Body**: `{"bucket_name": "...", "store_name": "...", "user_id": "..."}`
+- **Descripción**: Realiza un mirroring paralelo (Semaphore 10) entre GCS y Gemini.
+
+#### 3.2 Listar Repositorios de IA
+- **GET** `/stores`
+- **Descripción**: Lista los *File Search Stores* activos en Gemini.
+
+---
+
+## 🛠️ Token de Prueba (Temporal)
+Para visualización completa de respuestas, usa el siguiente token (válido por 1 hora desde 2026-04-01 11:40 AM):
+`[GCLOUD_TOKEN_HERE]`
+
+---
+
+## 📜 Definición de Hecho (DoD) para Agentes
+Los agentes que operen estas herramientas deben:
+1. Validar siempre el código de respuesta HTTP.
+2. Manejar errores 401 (Token expirado) solicitando refresco.
+3. Consultar los esquemas de BigQuery en `/schemas/` de cada API para entender la estructura de datos extendida.
