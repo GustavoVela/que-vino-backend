@@ -53,6 +53,23 @@ Este documento rastrea todas las APIs y agentes productivos expuestos en el ecos
 
 ---
 
+### 4. Audio Generation API (TTS)
+- **Repositorio**: `apis/audio/`
+- **MCP Server**: `apis/audio/mcp_server.py`
+- **Uso**: Generación de audio (Text-to-Speech) con enriquecimiento emocional vía Gemini.
+- **Proveedores**: ElevenLabs (High Fidelity) y Google Cloud TTS (Technical/Standard).
+
+#### 4.1 Generar Audio (Stream)
+- **POST** `/audio/generate`
+- **Body**: `{"text": "Hola mundo", "provider": "ELEVENLABS", "voice_id": "rachel", "enrich_audio": true}`
+- **Respuesta**: Byte Stream (MP3/WAV) + Headers `X-Generation-ID`.
+
+#### 4.2 Listar Voces Unidas
+- **GET** `/audio/providers/voices`
+- **Descripción**: Expone voces de ElevenLabs y Google mapeadas a un esquema común.
+
+---
+
 ## 🛠️ Token de Prueba (Temporal)
 Para visualización completa de respuestas, usa el siguiente token (válido por 1 hora desde 2026-04-01 11:40 AM):
 `[GCLOUD_TOKEN_HERE]`
