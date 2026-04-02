@@ -24,6 +24,7 @@ Todas las peticiones deben incluir un **Firebase ID Token** en el header `Author
   "text": "Hola, bienvenido al club de vinos Que Vino!? ¿En qué puedo ayudarte?",
   "provider": "ELEVENLABS" | "GOOGLE",
   "voice_id": "rachel" | "es-US-Neural2-A",
+  "model_id": "eleven_multilingual_v2" | "eleven_v3",
   "output_format": "mp3" | "wav",
   "enrich_audio": true 
 }
@@ -32,6 +33,7 @@ Todas las peticiones deben incluir un **Firebase ID Token** en el header `Author
   - `text` (string): Requerido. El mensaje a convertir en voz.
   - `provider` (string): Requerido. `ELEVENLABS` o `GOOGLE`.
   - `voice_id` (string): Requerido. ID de la voz seleccionada.
+  - `model_id` (string): Opcional. ID del modelo de síntesis (ej: `eleven_multilingual_v2`, `eleven_v3`). Predeterminado según el proveedor.
   - `output_format` (string): Opcional. Predeterminado `mp3`.
   - `enrich_audio` (boolean): Opcional. Activa el análisis de Gemini para inyectar marcadores de entonación.
 - **Respuesta (201 Created)**: Byte Stream binario (Content-Type: `audio/mpeg` o `audio/wav`).
@@ -80,6 +82,9 @@ Asegúrate de configurar las siguientes variables en el `.env` o en Cloud Run:
 - `ELEVENLABS_AUDIO_API_KEY`: API Key de ElevenLabs.
 - `GCS_AUDIO_BUCKET_NAME`: Bucket de salida para auditoría.
 
+> [!IMPORTANT]
+> **Timeout de Producción**: Para evitar errores 502/504 en Cloud Run durante la generación de audios largos (>30s), se recomienda que el servicio de Cloud Run tenga un timeout configurado de al menos **120 segundos**. Internamente, el microservicio maneja un timeout de hasta 90 segundos para las peticiones a proveedores externos.
+
 ---
 
 ## 📦 Desarrollo y Despliegue
@@ -88,8 +93,8 @@ Asegúrate de configurar las siguientes variables en el `.env` o en Cloud Run:
 # Ejecución Local
 python main.py
 
-# Despliegue Cloud Run (Usa Cloud Build)
-gcloud builds submit --config deploy/cloudbuild.yaml .
+# Despliegue Cloud Run (Usa Cloud Build) - Ejecutar desde el root del repositorio
+gcloud builds submit --config apis/audio/deploy/cloudbuild.yaml .
 ```
 
 ---

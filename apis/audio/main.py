@@ -131,6 +131,7 @@ async def generate_audio(
     text = payload.get("text")
     provider = payload.get("provider")
     voice_id = payload.get("voice_id")
+    model_id = payload.get("model_id") or payload.get("model") # Accept both
     output_format = payload.get("output_format", "mp3")
     enrich_audio = payload.get("enrich_audio", False)
 
@@ -142,6 +143,7 @@ async def generate_audio(
         text=text,
         provider_key=provider,
         voice_id=voice_id,
+        model_id=model_id,
         output_format=output_format,
         enrich_audio=enrich_audio
     )

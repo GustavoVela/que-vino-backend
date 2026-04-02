@@ -39,12 +39,13 @@ class AudioService:
         
         # Filter successes and flatten
         flat_list = []
-        for res in results:
+        from core.logger import logger
+        for i, res in enumerate(results):
+            provider_name = list(self.providers.keys())[i]
             if isinstance(res, list):
                 flat_list.extend(res)
             else:
-                # Log error or handle partial failure gracefully
-                print(f"Partial failure in list_voices: {str(res)}")
+                logger.error(f"Provider {provider_name} failed to list voices: {str(res)}")
         
         self.voice_cache["voices"] = flat_list
         return flat_list
@@ -60,12 +61,13 @@ class AudioService:
         
         # Filter successes and flatten
         flat_list = []
-        for res in results:
+        from core.logger import logger
+        for i, res in enumerate(results):
+            provider_name = list(self.providers.keys())[i]
             if isinstance(res, list):
                 flat_list.extend(res)
             else:
-                # Log error or handle partial failure gracefully
-                print(f"Partial failure in list_models: {str(res)}")
+                logger.error(f"Provider {provider_name} failed to list models: {str(res)}")
         
         self.model_cache["models"] = flat_list
         return flat_list
@@ -76,6 +78,7 @@ class AudioService:
         provider_key: str,
         voice_id: str,
         output_format: str,
+        model_id: Optional[str] = None,
         enrich_audio: bool = False,
         **kwargs
     ) -> Tuple[bytes, Dict[str, Any]]:
@@ -110,6 +113,7 @@ class AudioService:
             text=synthesis_text,
             voice_id=voice_id,
             output_format=output_format,
+            model_id=model_id,
             **kwargs
         )
 
