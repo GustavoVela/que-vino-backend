@@ -24,12 +24,12 @@ app.add_middleware(
     allow_origins=[
         "http://localhost",
         "http://localhost:3000",
-        "http://localhost:5173", # Vite default
+        "http://localhost:5173",
         "https://quevino.mx",
         "https://www.quevino.mx",
-        "https://id-preview--9ebf32fb-b85f-43d4-b440-af3007c90f34.lovable.app",
         "https://que-vino-admin.lovable.app",
-        "https://9ebf32fb-b85f-43d4-b440-af3007c90f34.lovableproject.com"
+        "https://9ebf32fb-b85f-43d4-b440-af3007c90f34.lovableproject.com",
+        "https://id-preview--9ebf32fb-b85f-43d4-b440-af3007c90f34.lovable.app"
     ],
     allow_credentials=False, 
     allow_methods=["*"],

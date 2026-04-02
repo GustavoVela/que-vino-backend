@@ -41,8 +41,9 @@ app.add_middleware(
         "http://localhost:5173",
         "https://quevino.mx",
         "https://www.quevino.mx",
-        "https://*.lovable.app",
-        "https://*.lovableproject.com"
+        "https://que-vino-admin.lovable.app",
+        "https://9ebf32fb-b85f-43d4-b440-af3007c90f34.lovableproject.com",
+        "https://id-preview--9ebf32fb-b85f-43d4-b440-af3007c90f34.lovable.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -65,7 +66,12 @@ class APILoggingMiddleware(BaseHTTPMiddleware):
         if request.method == "POST" and "/audio/generate" in request.url.path:
             try:
                 body_bytes = await request.body()
-                request_body = body_bytes.decode()
+                try:
+                    import json
+                    request_body = json.loads(body_bytes.decode())
+                except Exception:
+                    request_body = {"raw": body_bytes.decode()}
+                
                 async def receive():
                     return {"type": "http.request", "body": body_bytes}
                 request._receive = receive

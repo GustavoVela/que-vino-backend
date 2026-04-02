@@ -1,0 +1,32 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/quevino-audio', '-f', 'apis/audio/Dockerfile', 'apis/audio/']
+  
+  # Push the image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/quevino-audio']
+  
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'quevino-audio'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/quevino-audio'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--service-account'
+      - 'cloud-run-apis@que-vino-23032025.iam.gserviceaccount.com'
+      - '--max-instances'
+      - '1'
+      - '--set-env-vars'
+      - 'PROJECT_ID=que-vino-23032025,GEMINI_AUDIO_API_KEY=AIzaSyAyMY3ZFZQmEJjYQyQw729wdWrOLrBEMBg,ELEVENLABS_AUDIO_API_KEY=sk_561d7b8080e8e4c07cc9d16a3f0ace1dddf4e01324a4c920,FIREBASE_API_KEY=AIzaSyA6zvvvfV9DhKdrrBTSM0iuqDsH9dHpvyA,FIREBASE_PROJECT_ID=que-vino-23032025,GCS_AUDIO_BUCKET_NAME=que-vino-23032025-audios'
+
+images:
+  - 'gcr.io/$PROJECT_ID/quevino-audio'

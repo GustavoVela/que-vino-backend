@@ -10,8 +10,8 @@ class APITransactionBase(BaseModel):
     transaction_api_type: str  # GET, POST
     transaction_api_path: str
     transaction_parameters: Optional[Dict[str, Any]] = None
-    payload_request: Optional[Dict[str, Any]] = None
-    payload_response: Optional[Dict[str, Any]] = None
+    payload_request: Optional[Any] = None
+    payload_response: Optional[Any] = None
     event_timestamp: datetime = Field(default_factory=datetime.utcnow)
     ingestion_timestamp: Optional[datetime] = None
 

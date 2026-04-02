@@ -1,47 +1,96 @@
-# Audio Generation API (Que Vino!?)
+# 🔊 Audio Generation API (Que Vino!? TTS)
 
-Gateway unificado de generación de audio (TTS) para el ecosistema de agentes de Que Vino!?, integrando ElevenLabs, Google Cloud TTS y enriquecimiento contextual con Gemini.
+El micro-swarm de **Audio** es el motor unificado de síntesis de voz (Text-to-Speech) para la plataforma **Que Vino!?**. Este servicio centraliza la generación de audio de alta fidelidad utilizando múltiples proveedores y capacidades de enriquecimiento emocional mediante IA.
 
-## 🚀 Propósito
-Facilitar la creación de contenido auditivo premium (asesoría, noticias, catas) mediante una interfaz consistente que soporta múltiples proveedores y auditoría inmutable en Google Cloud.
+---
 
-## 🏗 Arquitectura
-Implementado como un **Micro-Swarm** independiente en Google Cloud Run, siguiendo la [Constitución del Proyecto](file:///.specify/memory/constitution.md).
+## 🎭 Proveedores de Voz Soportados
 
-### Componentes Clave:
-*   **Gemini 1.5 Flash:** Actúa como "Director de Orquesta" para inyectar etiquetas expresivas o SSML según el proveedor.
-*   **ElevenLabs:** Generación de voces premium con alta expresividad.
-*   **Google Cloud TTS:** Generación robusta y escalable con voces neuronales.
-*   **GCS Storage:** Persistencia centralizada en `gs://{PROJECT_ID}-media/audio/`.
-*   **BigQuery:** Registro de auditoría en `src_api_transactions.audio_generation_log`.
+1. **ElevenLabs**: Ideal para narraciones ricas, matizadas y emocionales (High Fidelity).
+2. **Google Cloud TTS**: Óptimo para respuestas técnicas, rápidas y estandarizadas (Standard & Neural).
+3. **Gemini (Enrichment)**: Analiza el contexto emocional del texto e inyecta pausas, énfasis y variaciones tonales recomendadas.
 
-## 🛠 Instalación y Uso
+---
 
-### Variables de Entorno (.env)
-```env
-GEMINI_AUDIO_API_KEY="..."
-ELEVENLABS_AUDIO_API_KEY="..."
-GCS_AUDIO_BUCKET_NAME="que-vino-23032025-media"
-DEFAULT_VOICE_ELEVENLABS="21m00Tcm4TDOqjz76jtA"
-DEFAULT_VOICE_GOOGLE="es-US-Neural2-A"
+## 🛠️ API REST Reference
+
+Todas las peticiones deben incluir un **Firebase ID Token** en el header `Authorization`.
+
+### 1. Generación de Audio (Stream)
+- **POST** `/audio/generate`
+- **Body**:
+```json
+{
+  "text": "Hola, bienvenido al club de vinos Que Vino!? ¿En qué puedo ayudarte?",
+  "provider": "ELEVENLABS" | "GOOGLE",
+  "voice_id": "rachel" | "es-US-Neural2-A",
+  "output_format": "mp3" | "wav",
+  "enrich_audio": true 
+}
+```
+- **Parámetros**:
+  - `text` (string): Requerido. El mensaje a convertir en voz.
+  - `provider` (string): Requerido. `ELEVENLABS` o `GOOGLE`.
+  - `voice_id` (string): Requerido. ID de la voz seleccionada.
+  - `output_format` (string): Opcional. Predeterminado `mp3`.
+  - `enrich_audio` (boolean): Opcional. Activa el análisis de Gemini para inyectar marcadores de entonación.
+- **Respuesta (201 Created)**: Byte Stream binario (Content-Type: `audio/mpeg` o `audio/wav`).
+- **Headers Traceability**:
+  - `X-Generation-ID`: UUID único de la generación, guardado en GCS para auditoría.
+  - `X-Enrichment-Status`: `ENABLED` | `FAILED` | `DISABLED`.
+
+### 2. Listar Voces Unidas
+- **GET** `/audio/providers/voices`
+- **Header**: `Authorization: Bearer <ID_TOKEN>`
+- **Descripción**: Expone un catálogo unificado de voces de ElevenLabs y Google mapeadas bajo un esquema común de género y estilo.
+- **Respuesta**:
+```json
+[
+  { "id": "rachel", "provider": "ELEVENLABS", "gender": "Female", "description": "Bright, clear for narration", "language": "es" },
+  { "id": "es-US-Neural2-A", "provider": "GOOGLE", "gender": "Female", "description": "Standard neural for technical responses", "language": "es" }
+]
 ```
 
-### Ejecución Local
+### 3. Salud del Servicio
+- **GET** `/health`
+- **Respuesta**: `{"status": "ok", "service": "que-vino-audio-api"}`
+
+---
+
+## 🕵️ Auditoría y Persistencia
+
+Siguiendo la **Sección 6.192 de la Constitución de Que Vino!?**:
+- Cada audio generado se persiste automáticamente en un bucket de **GCS** (`que-vino-[ID]-media/audio`).
+- Cada transacción se registra en **BigQuery** (`src_api_transactions.audio_generation_log`).
+
+---
+
+## 🔒 Autenticación (Auth)
+
+El microservicio utiliza **Firebase Authentication**.
+
+**Token URL**: `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=[FIREBASE_API_KEY]`
+
+---
+
+## ⚙️ Configuración (Environment)
+
+Asegúrate de configurar las siguientes variables en el `.env` o en Cloud Run:
+- `GEMINI_AUDIO_API_KEY`: Para el enriquecimiento emocional.
+- `ELEVENLABS_AUDIO_API_KEY`: API Key de ElevenLabs.
+- `GCS_AUDIO_BUCKET_NAME`: Bucket de salida para auditoría.
+
+---
+
+## 📦 Desarrollo y Despliegue
+
 ```bash
-poetry install
-poetry run uvicorn main:app --reload --port 8001
+# Ejecución Local
+python main.py
+
+# Despliegue Cloud Run (Usa Cloud Build)
+gcloud builds submit --config deploy/cloudbuild.yaml .
 ```
 
-## 📡 Endpoints (Tools para Agentes)
-
-| Método | Endpoint | Descripción |
-| :--- | :--- | :--- |
-| `POST` | `/audio/generate` | Genera audio a partir de texto con soporte para IA y múltiples proveedores. |
-| `GET` | `/audio/voices` | Lista las voces disponibles de todos los proveedores activos (Resiliente). |
-| `GET` | `/audio/models` | Consulta modelos y configuraciones de ElevenLabs. |
-
-## 🛡 Seguridad (CORS)
-Solo permite orígenes del ecosistema (localhost, quevino.mx, lovable.app) definidos en la sección 4.2 de la constitución.
-
-## 📜 Licencia
-Propiedad de Que Vino!? - Todos los derechos reservados.
+---
+© 2026 Que Vino!? - Constitución y Reglas de Agentic Architecture.

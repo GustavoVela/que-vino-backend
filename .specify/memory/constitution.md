@@ -157,7 +157,9 @@ Para profundizar en la arquitectura descrita, se integran explícitamente herram
 * **CORS Standard Configuration:** Para garantizar la interoperabilidad, toda API debe configurar el `CORSMiddleware` con los siguientes orígenes:
    - `http://localhost`, `http://localhost:3000`, `http://localhost:5173`
    - `https://quevino.mx`, `https://www.quevino.mx`
-   - `https://*.lovable.app`, `https://*.lovableproject.com`
+    - `https://que-vino-admin.lovable.app`
+    - `https://9ebf32fb-b85f-43d4-b440-af3007c90f34.lovableproject.com`
+    - `https://id-preview--9ebf32fb-b85f-43d4-b440-af3007c90f34.lovable.app`
 * **Datos de Prueba:** Los archivos `config.py` locales pueden contener configuraciones de prueba o leer de un `.env` específico para facilitar la ejecución de tests sin bloqueo de autenticación.
 
 ### 4.1. Prevención de Prompt Injection y Seguridad Agéntica

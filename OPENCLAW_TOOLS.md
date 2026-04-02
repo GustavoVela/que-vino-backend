@@ -1,83 +1,91 @@
-# Que Vino OPENCLAW API Inventory
+# Que Vino!? OPENCLAW API Inventory (v2.1)
 
-Este documento rastrea todas las APIs y agentes productivos expuestos en el ecosistema `que-vino-backend`. Es la fuente de verdad para que los agentes de IA descubran y utilicen herramientas.
+Este documento es el catálogo unificado de herramientas productivas para agentes de IA en el ecosistema **Que Vino!?**. Define los endpoints, esquemas de entrada y comportamiento esperado para cada micro-swarm.
 
-## APIs de Negocio
+---
 
-### 1. Stores API (Gestión de Tiendas)
+## 🔒 Estándar de Autenticación
+Todas las peticiones deben incluir un **Bearer Token (Firebase ID Token)** en el header `Authorization`.
+
+**URL para obtención de Token (Auth API)**:
+`POST https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=[FIREBASE_API_KEY]`
+
+---
+
+## 🔒 Estándar de CORS
+Los microservicios están configurados para aceptar únicamente peticiones desde los siguientes orígenes autorizados (sin comodines por seguridad):
+- `http://localhost`, `http://localhost:3000`, `http://localhost:5173`
+- `https://quevino.mx`, `https://www.quevino.mx`
+- `https://que-vino-admin.lovable.app`
+- `https://9ebf32fb-b85f-43d4-b440-af3007c90f34.lovableproject.com`
+- `https://id-preview--9ebf32fb-b85f-43d4-b440-af3007c90f34.lovable.app`
+
+---
+Gestión centralizada de tiendas, productores y clubes de vino.
+
 - **URL Producción**: `https://quevino-stores-2lkhisz2aa-uc.a.run.app`
-- **Repositorio**: `apis/stores/`
-- **Uso**: Gestión centralizada de marcas y entidades legales de tiendas.
-
-#### 1.1 Listar Tiendas
-- **GET** `/stores`
-- **Params**: `limit`, `offset`
-- **Ejemplo**: `curl -H "Authorization: Bearer <TOKEN>" "https://quevino-stores-2lkhisz2aa-uc.a.run.app/stores"`
-
-#### 1.2 Búsqueda Semántica/Nombre
-- **GET** `/stores/search`
-- **Params**: `name` (Requerido)
-- **Ejemplo**: `curl -H "Authorization: Bearer <TOKEN>" "https://quevino-stores-2lkhisz2aa-uc.a.run.app/stores/search?name=Vinoteca"`
+- **Uso**: Listar y buscar marcas de vino y entidades comerciales.
 
 ---
 
-### 2. Locations API (Gestión de Sucursales)
+## 📍 2. Locations API (Sucursales)
+Catálogo de puntos de venta físicos, geolocalización y horarios.
+
 - **URL Producción**: `https://quevino-locations-2lkhisz2aa-uc.a.run.app`
-- **Repositorio**: `apis/locations/`
-- **Uso**: Gestión de puntos de venta físicos, geolocalización y horarios.
-
-#### 2.1 Listar Sucursales
-- **GET** `/locations`
-- **Ejemplo**: `curl -H "Authorization: Bearer <TOKEN>" "https://quevino-locations-2lkhisz2aa-uc.a.run.app/locations"`
-
-#### 2.2 Crear Sucursal
-- **POST** `/locations`
-- **Body**: `{"name": "...", "store_id": "...", "latitude": ..., "longitude": ...}`
+- **Uso**: Localizar tiendas físicas cercanas al usuario.
 
 ---
 
-### 3. Knowledge Stores API (RAG & IA)
-- **URL Producción**: `https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app`
+## 🧠 3. Knowledge Stores API (RAG System)
+Gestión de bases de conocimiento nativas en Gemini (File Search). Permite el 'mirroring' automático entre Google Cloud Storage y el motor de búsqueda semántica.
+
+- **URL Producción**: `https://quevino-knowledge-stores-678275032484.us-central1.run.app`
 - **Repositorio**: `apis/knowledge_stores/`
-- **SDK**: **Gemini GenAI Native (v1.70.0+)**
-- **Uso**: Sincronización de bases de conocimiento desde GCS hacia Gemini para búsqueda semántica.
+- **MCP Server**: `apis/knowledge_stores/mcp_server.py`
 
-#### 3.1 Sincronizar Base de Conocimiento (Mirroring)
-- **POST** `/sync-bucket`
-- **Body**: `{"bucket_name": "...", "store_name": "...", "user_id": "..."}`
-- **Descripción**: Realiza un mirroring paralelo (Semaphore 10) entre GCS y Gemini.
+### 3.1 Sincronización Masiva (GCS -> Gemini)
+- **POST** `/knowledge-stores/sync`
+- **Body**: `{"bucket_name": "...", "prefix": "...", "store_name": "..."}`
+- **Descripción**: Mirroring incremental con limpieza de huérfanos.
 
-#### 3.2 Listar Repositorios de IA
-- **GET** `/stores`
-- **Descripción**: Lista los *File Search Stores* activos en Gemini.
+### 3.2 Listado de Stores
+- **GET** `/knowledge-stores`
+- **Respuesta**: Listado de IDs de recursos para grounding (ej: `fileSearchStores/{id}`).
 
 ---
 
-### 4. Audio Generation API (TTS)
+## 🔊 4. Audio Generation API (TTS)
+Servicio unificado de síntesis de voz con enriquecimiento emocional mediante IA.
+
+- **URL Producción**: `https://quevino-audio-678275032484.us-central1.run.app`
 - **Repositorio**: `apis/audio/`
 - **MCP Server**: `apis/audio/mcp_server.py`
-- **Uso**: Generación de audio (Text-to-Speech) con enriquecimiento emocional vía Gemini.
-- **Proveedores**: ElevenLabs (High Fidelity) y Google Cloud TTS (Technical/Standard).
 
-#### 4.1 Generar Audio (Stream)
+### 4.1 Generación de Audio (Multi-Provider)
 - **POST** `/audio/generate`
-- **Body**: `{"text": "Hola mundo", "provider": "ELEVENLABS", "voice_id": "rachel", "enrich_audio": true}`
-- **Respuesta**: Byte Stream (MP3/WAV) + Headers `X-Generation-ID`.
+- **Body Request**:
+  ```json
+  {
+    "text": "Tu texto aquí...",
+    "provider": "ELEVENLABS" | "GOOGLE",
+    "voice_id": "rachel" | "es-US-Neural2-A",
+    "output_format": "mp3" | "wav",
+    "enrich_audio": true 
+  }
+  ```
+- **Respuesta**: Byte Stream binario (Content-Type: audio/mpeg o audio/wav).
+- **Headers**: `X-Generation-ID`, `X-Enrichment-Status`.
 
-#### 4.2 Listar Voces Unidas
+### 4.2 Catálogo de Voces
 - **GET** `/audio/providers/voices`
-- **Descripción**: Expone voces de ElevenLabs y Google mapeadas a un esquema común.
-
----
-
-## 🛠️ Token de Prueba (Temporal)
-Para visualización completa de respuestas, usa el siguiente token (válido por 1 hora desde 2026-04-01 11:40 AM):
-`[GCLOUD_TOKEN_HERE]`
+- **Descripción**: Voces reconciliadas (GCP + ElevenLabs).
 
 ---
 
 ## 📜 Definición de Hecho (DoD) para Agentes
-Los agentes que operen estas herramientas deben:
-1. Validar siempre el código de respuesta HTTP.
-2. Manejar errores 401 (Token expirado) solicitando refresco.
-3. Consultar los esquemas de BigQuery en `/schemas/` de cada API para entender la estructura de datos extendida.
+1. **Auditoría**: Cada transacción POST/DELETE es logueada en BigQuery.
+2. **Resiliencia**: Manejo de 401 vía solicitud de nuevo token.
+3. **Concurrencia**: Mirroring soporta 10 hilos paralelos.
+
+---
+© 2026 Que Vino!? - Constitución y Reglas de Agentic Architecture.

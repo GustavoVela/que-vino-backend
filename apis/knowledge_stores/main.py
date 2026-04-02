@@ -23,7 +23,9 @@ app.add_middleware(
         "http://localhost:5173",
         "https://quevino.mx",
         "https://www.quevino.mx",
-        "https://que-vino-admin.lovable.app"
+        "https://que-vino-admin.lovable.app",
+        "https://9ebf32fb-b85f-43d4-b440-af3007c90f34.lovableproject.com",
+        "https://id-preview--9ebf32fb-b85f-43d4-b440-af3007c90f34.lovable.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
