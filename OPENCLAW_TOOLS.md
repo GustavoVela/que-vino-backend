@@ -75,7 +75,9 @@ Gestión de bases de conocimiento nativas en Gemini (File Search). Permite el mi
 - **Respuesta**: `{"status": "completed", "transaction_id": "...", "summary": {"uploaded": N, "skipped": N, "deleted": N, "errors": N}}`
 
 ### 3.5 Eliminar Store
-- `DELETE /knowledge-stores/{store_id}` → `204 No Content`
+- `DELETE /knowledge-stores/{store_id}` → `409` si no está vacío / `204` si vacío
+- `DELETE /knowledge-stores/{store_id}?force=true` → cascade delete (elimina docs y store) → `204`
+- **409 STORE_NOT_EMPTY**: Gemini no permite borrar stores con documentos. Pasar `?force=true` para cascade delete.
 
 ### 3.6 Eliminar Documento
 - `DELETE /knowledge-stores/{store_id}/files/{file_id}` → `204 No Content`

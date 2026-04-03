@@ -2,7 +2,7 @@
 
 **Entorno:** Producción (Cloud Run)  
 **URL Base:** `https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app`  
-**Fecha:** 2026-04-02 18:32:16  
+**Fecha:** 2026-04-02 18:47:40  
 **Resultado:** `6/6` pruebas exitosas  
 
 ---
@@ -43,12 +43,8 @@ GET https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app/knowledge-stores
     "display_name": "grapes_v2"
   },
   {
-    "id": "fileSearchStores/testsyncprueba-ye9twax788oh",
-    "display_name": "test-sync-prueba"
-  },
-  {
-    "id": "fileSearchStores/testintegrationstore-65tve4tnrknx",
-    "display_name": "test-integration-store"
+    "id": "fileSearchStores/regions-lgpvlubvqt3g",
+    "display_name": "regions"
   }
 ]
 ```
@@ -571,7 +567,7 @@ POST https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app/knowledge-stores/s
 ```json
 {
   "status": "completed",
-  "transaction_id": "cf99346c-85cd-48fa-bec6-6e9a7aa700d2",
+  "transaction_id": "a7e22719-6f7d-49cc-b437-9cb8919210ee",
   "summary": {
     "uploaded": 0,
     "skipped": 0,

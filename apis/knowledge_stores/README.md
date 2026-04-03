@@ -115,13 +115,30 @@ curl -X POST "https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app/knowledge
 
 ### 5. Eliminar Store
 
-**DELETE** `/knowledge-stores/{store_id}`
+**DELETE** `/knowledge-stores/{store_id}`  
+**DELETE** `/knowledge-stores/{store_id}?force=true` *(cascade delete)*
 
 ```bash
-curl -X DELETE "https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app/knowledge-stores/grapes-bpdsyaih31jh" \
+# Intento normal (fallará si el store tiene documentos → 409)
+curl -X DELETE "https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app/knowledge-stores/grapesv2-g6u5ywotqjyc" \
+  -H "Authorization: Bearer <ID_TOKEN>"
+
+# Cascade delete: elimina todos los documentos y luego el store
+curl -X DELETE "https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app/knowledge-stores/grapesv2-g6u5ywotqjyc?force=true" \
   -H "Authorization: Bearer <ID_TOKEN>"
 # → 204 No Content
 ```
+
+| Status | Descripción |
+|---|---|
+| `204` | Store eliminado exitosamente. |
+| `409 STORE_NOT_EMPTY` | El store contiene documentos. Usa `?force=true` o elimínalos primero. |
+| `404 STORE_NOT_FOUND` | El store no existe. |
+
+> [!NOTE]
+> Gemini no permite eliminar un store que contenga documentos. Sin `?force=true`, el endpoint 
+> retorna `409 Conflict` con instrucciones claras. Con `?force=true` se eliminan todos los documentos
+> en cascada y luego el store.
 
 ### 6. Eliminar Documento
 

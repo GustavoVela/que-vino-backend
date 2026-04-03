@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
 from core.auth_middleware import AuthMiddleware
 from config import settings
@@ -6,6 +6,7 @@ from schemas.api_models import SyncRequest
 from services.sync_service import sync_bucket_to_gemini
 from core.gemini_client import list_stores, list_documents, delete_store, delete_document
 from core.db import log_api_transaction_async
+import logging
 import uuid
 
 app = FastAPI(
@@ -116,27 +117,108 @@ async def sync_store(request: Request, body: SyncRequest):
         )
 
 @app.delete("/knowledge-stores/{store_id}", status_code=204)
-async def remove_store(request: Request, store_id: str, background_tasks: BackgroundTasks):
-    """Elimina un store completo."""
+async def remove_store(
+    request: Request,
+    store_id: str,
+    background_tasks: BackgroundTasks,
+    force: bool = Query(default=False, description="Si es true, elimina todos los documentos del store antes de borrarlo (cascade delete).")
+):
+    """
+    Elimina un store de Gemini.
+
+    Si el store contiene documentos, Gemini rechaza la operación con FAILED_PRECONDITION.
+    Usa ?force=true para eliminar en cascada todos los documentos primero y luego el store.
+
+    HTTP 409 Conflict: El store no está vacío. Usa ?force=true o elimina los archivos primero.
+    HTTP 404 Not Found: El store no existe.
+    HTTP 204 No Content: Eliminado exitosamente.
+    """
     user_id = getattr(request.state, "user", {}).get("uid", "SYSTEM")
+    full_store_name = store_id if store_id.startswith("fileSearchStores/") else f"fileSearchStores/{store_id}"
+
     try:
-        full_store_name = store_id if store_id.startswith("fileSearchStores/") else f"fileSearchStores/{store_id}"
+        if force:
+            # Cascade delete: primero eliminamos todos los documentos del store
+            logging.info(f"[remove_store] force=true — eliminando documentos del store {full_store_name}")
+            try:
+                documents = list_documents(full_store_name)
+            except Exception as list_err:
+                logging.error(f"[remove_store] Error al listar documentos para cascade delete: {list_err}")
+                raise HTTPException(
+                    status_code=500,
+                    detail={"error_code": "LIST_DOCUMENTS_FAILED", "message": str(list_err), "detail": None}
+                )
+
+            for doc in documents:
+                # El campo 'id' ya contiene el resource name completo del documento
+                doc_name = doc.get("id", "")
+                if doc_name:
+                    try:
+                        delete_document(doc_name)
+                        logging.info(f"[remove_store] Documento eliminado: {doc_name}")
+                    except Exception as del_err:
+                        logging.warning(f"[remove_store] No se pudo eliminar el documento {doc_name}: {del_err}")
+
         delete_store(full_store_name)
         background_tasks.add_task(log_api_transaction_async, "UNKNOWN", store_id, user_id, "DELETE_STORE", "DELETE")
+
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        err_str = str(e)
+        # Gemini retorna FAILED_PRECONDITION cuando el store no está vacío
+        if "FAILED_PRECONDITION" in err_str or "Cannot delete non-empty" in err_str:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error_code": "STORE_NOT_EMPTY",
+                    "message": "El store no se puede eliminar porque contiene documentos indexados.",
+                    "detail": "Usa ?force=true para eliminar en cascada todos los documentos primero, o elimínalos individualmente con DELETE /knowledge-stores/{store_id}/files/{file_id}."
+                }
+            )
+        # Gemini retorna NOT_FOUND cuando el store no existe
+        if "NOT_FOUND" in err_str or "404" in err_str:
+            raise HTTPException(
+                status_code=404,
+                detail={"error_code": "STORE_NOT_FOUND", "message": f"El store '{store_id}' no existe.", "detail": None}
+            )
+        logging.error(f"[remove_store] Error inesperado al eliminar store {store_id}: {err_str}")
+        raise HTTPException(
+            status_code=500,
+            detail={"error_code": "DELETE_STORE_FAILED", "message": err_str, "detail": None}
+        )
 
 @app.delete("/knowledge-stores/{store_id}/files/{file_id}", status_code=204)
 async def remove_file(request: Request, store_id: str, file_id: str, background_tasks: BackgroundTasks):
-    """Elimina un archivo específico de un store."""
+    """
+    Elimina un archivo específico de un store.
+
+    El file_id debe ser el ID corto del documento (sin el prefijo del store).
+    Se recomienda obtenerlo del campo 'id' de GET /knowledge-stores/{store_id}/files
+    y pasar únicamente la última parte del resource name.
+    """
     user_id = getattr(request.state, "user", {}).get("uid", "SYSTEM")
     try:
-        # Full resource name is usually needed: fileSearchStores/{store_id}/fileSearchDocuments/{file_id}
-        doc_name = f"fileSearchStores/{store_id}/fileSearchDocuments/{file_id}"
+        # El resource name completo del documento es el campo 'id' retornado por list_documents.
+        # Si el caller pasa el ID corto, reconstruimos el nombre completo.
+        if file_id.startswith("fileSearchStores/"):
+            doc_name = file_id
+        else:
+            doc_name = f"fileSearchStores/{store_id}/documents/{file_id}"
         delete_document(doc_name)
         background_tasks.add_task(log_api_transaction_async, "UNKNOWN", store_id, user_id, "DELETE_FILE", "DELETE")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        err_str = str(e)
+        if "NOT_FOUND" in err_str or "404" in err_str:
+            raise HTTPException(
+                status_code=404,
+                detail={"error_code": "FILE_NOT_FOUND", "message": f"El archivo '{file_id}' no existe en el store '{store_id}'.", "detail": None}
+            )
+        logging.error(f"[remove_file] Error inesperado al eliminar archivo {file_id}: {err_str}")
+        raise HTTPException(
+            status_code=500,
+            detail={"error_code": "DELETE_FILE_FAILED", "message": err_str, "detail": None}
+        )
 
 if __name__ == "__main__":
     import uvicorn
