@@ -1,8 +1,12 @@
 # 🧠 Knowledge Stores API (Que Vino!? RAG)
 
-El micro-swarm de **Knowledge Stores** es el cerebro de indexación del ecosistema **Que Vino!?**. Este servicio orquestra la sincronización bidireccional entre **Google Cloud Storage (GCS)** y el motor de búsqueda semántica **Gemini File Search (SDK v1.70.0+ Native)**.
+El micro-swarm de **Knowledge Stores** es el cerebro de indexación del ecosistema **Que Vino!?**. Este servicio orquesta la sincronización bidireccional entre **Google Cloud Storage (GCS)** y el motor de búsqueda semántica **Gemini File Search (SDK v1.70.0+ Native)**.
 
 Su objetivo es permitir que los agentes de IA accedan a bases de conocimiento propietarias (guías de cata, manuales de sommelier, inventarios, etc.) de manera estructurada y fundamentada (Grounding).
+
+- **URL Producción**: `https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app`
+- **Repositorio**: `apis/knowledge_stores/`
+- **Resultados de Prueba**: [`tests/TEST_RESULTS.md`](tests/TEST_RESULTS.md)
 
 ---
 
@@ -19,75 +23,132 @@ Su objetivo es permitir que los agentes de IA accedan a bases de conocimiento pr
 
 ## 🛠️ API REST Reference
 
+Todas las peticiones (excepto `/health`) deben incluir un **Firebase ID Token** en el header `Authorization: Bearer <ID_TOKEN>`.
+
 ### 1. Salud del Servicio
-- **GET** `/health`
-- **Respuesta**: `{"status": "ok", "environment": "dev|prod"}`
+
+**GET** `/health` *(sin autenticación)*
+
+```bash
+curl "https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app/health"
+# → {"status": "ok", "environment": "dev"}
+```
+
+---
 
 ### 2. Listar Repositorios
-- **GET** `/knowledge-stores`
-- **Header**: `Authorization: Bearer <FIREBASE_ID_TOKEN>`
-- **Descripción**: Obtiene la lista de todos los stores de Gemini activos.
-- **Respuesta**:
+
+**GET** `/knowledge-stores`
+
+```bash
+curl "https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app/knowledge-stores" \
+  -H "Authorization: Bearer <ID_TOKEN>"
+```
+
+**Respuesta (200)**:
 ```json
 [
-  { "id": "fileSearchStores/123", "display_name": "sommelier-guide-v1" },
-  { "id": "fileSearchStores/456", "display_name": "inventory-logs" }
+  { "id": "fileSearchStores/grapes-bpdsyaih31jh", "display_name": "grapes" },
+  { "id": "fileSearchStores/grapesv2-g6u5ywotqjyc", "display_name": "grapes_v2" }
 ]
 ```
 
-### 3. Sincronizar Base de Conocimiento (Mirroring)
-- **POST** `/knowledge-stores/sync`
-- **Header**: `Authorization: Bearer <FIREBASE_ID_TOKEN>`
-- **Body**:
-```json
-{
-  "bucket_name": "mi-bucket-gcs",
-  "prefix": "documentacion/",
-  "store_name": "Nombre Opcional del Store"
-}
+> [!NOTE]
+> El campo `id` es el nombre completo del recurso en Gemini. El ID corto (ej: `grapes-bpdsyaih31jh`) puede usarse directamente en los endpoints de path `{store_id}`.
+
+---
+
+### 3. Listar Documentos en un Store
+
+**GET** `/knowledge-stores/{store_id}/files`
+
+```bash
+# Usando el ID corto del store
+curl "https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app/knowledge-stores/grapes-bpdsyaih31jh/files" \
+  -H "Authorization: Bearer <ID_TOKEN>"
 ```
-- **Parámetros**:
-  - `bucket_name` (string): Requerido. Nombre del bucket de GCS origen.
-  - `prefix` (string): Opcional. Filtro de subdirectorio.
-  - `store_name` (string): Opcional. Si no existe, se crea un store con este nombre. Si falta, usa el nombre del bucket.
-- **Respuesta (200)**:
+
+**Respuesta (200)**:
+```json
+[
+  {
+    "id": "fileSearchStores/grapes-bpdsyaih31jh/documents/grapescabernet-sauvignonmd-xxx",
+    "display_name": "grapes/Cabernet Sauvignon.md",
+    "metadata": {}
+  }
+]
+```
+
+---
+
+### 4. Sincronizar Base de Conocimiento (GCS → Gemini)
+
+**POST** `/knowledge-stores/sync`
+
+```bash
+curl -X POST "https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app/knowledge-stores/sync" \
+  -H "Authorization: Bearer <ID_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bucket_name": "mi-bucket-gcs",
+    "prefix": "documentacion/",
+    "store_name": "mi-knowledge-store"
+  }'
+```
+
+| Parámetro | Tipo | Req. | Descripción |
+|---|---|---|---|
+| `bucket_name` | string | ✅ | Nombre del bucket de GCS origen. |
+| `prefix` | string | ❌ | Filtro de subdirectorio dentro del bucket. |
+| `store_name` | string | ❌ | Nombre del store destino. Si no existe, se crea. Si falta, usa el nombre del bucket. |
+
+**Respuesta (200)**:
 ```json
 {
   "status": "completed",
-  "transaction_id": "8374-2394-...",
+  "transaction_id": "cf99346c-85cd-48fa-bec6-6e9a7aa700d2",
   "summary": { "uploaded": 12, "skipped": 4, "deleted": 1, "errors": 0 }
 }
 ```
 
-### 4. Listar Documentos en un Store
-- **GET** `/knowledge-stores/{store_id}/files`
-- **Header**: `Authorization: Bearer <FIREBASE_ID_TOKEN>`
-- **Parámetros Path**:
-  - `store_id`: El ID corto o completo del store (ej: `123`).
-- **Respuesta**: `Array<Document>`
+---
 
-### 5. Eliminar Store o Documento
-- **DELETE** `/knowledge-stores/{store_id}`
-- **DELETE** `/knowledge-stores/{store_id}/files/{file_id}`
-- **Respuesta**: `204 No Content`
+### 5. Eliminar Store
+
+**DELETE** `/knowledge-stores/{store_id}`
+
+```bash
+curl -X DELETE "https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app/knowledge-stores/grapes-bpdsyaih31jh" \
+  -H "Authorization: Bearer <ID_TOKEN>"
+# → 204 No Content
+```
+
+### 6. Eliminar Documento
+
+**DELETE** `/knowledge-stores/{store_id}/files/{file_id}`
+
+```bash
+curl -X DELETE "https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app/knowledge-stores/grapes-bpdsyaih31jh/files/grapescabernet-sauvignonmd-xxx" \
+  -H "Authorization: Bearer <ID_TOKEN>"
+# → 204 No Content
+```
 
 ---
 
 ## 🔍 Métodos de Consulta (Search & Grounding)
 
-Para ejecutar búsquedas sobre estos stores, el agente receptor (ej: Antigravity) debe:
+Para ejecutar búsquedas sobre estos stores, el agente receptor debe:
 
 1. **Vía Gemini Tool**: Configurar el modelo con la herramienta `file_search` apuntando al `store_id`.
    ```python
    tools = [types.Tool(file_search=types.FileSearch())]
-   # Grounding query
    response = client.models.generate_content(
        model="gemini-2.5-flash",
        contents="¿Qué dice la guía sobre el vino tinto?",
        config=types.GenerateContentConfig(tools=tools)
    )
    ```
-2. **Vía MCP Tool**: Utilizar la herramienta `list_knowledge_documents` para mapear el contenido manual si no se dispone de grounding nativo.
+2. **Vía MCP Tool**: Utilizar la herramienta `list_knowledge_documents` expuesta en `mcp_server.py`.
 
 ---
 
@@ -95,22 +156,37 @@ Para ejecutar búsquedas sobre estos stores, el agente receptor (ej: Antigravity
 
 El microservicio utiliza **Firebase Authentication**. Los tokens (JWT) se validan contra el proyecto configurado en `config.py`.
 
-**Token URL**: `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=[FIREBASE_API_KEY]`
-
----
-
-## 📦 Desarrollo y Despliegue
-
 ```bash
-# Instalación
-poetry install
-
-# Ejecución Local
-python main.py
-
-# Despliegue Cloud Run
-gcloud builds submit --config deploy/cloudbuild.yaml .
+# Obtener Firebase ID Token
+curl -X POST \
+  "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=<FIREBASE_API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "usuario@ejemplo.com", "password": "contraseña", "returnSecureToken": true}'
 ```
 
 ---
-© 2026 Que Vino!? - Constitución y Reglas de Agentic Architecture.
+
+## 🧪 Pruebas de Integración
+
+Ejecutar desde la raíz del repositorio:
+
+```bash
+python3 apis/knowledge_stores/tests/test_production.py
+```
+
+Genera `apis/knowledge_stores/tests/TEST_RESULTS.md` con el detalle de todos los llamados a producción y sus respuestas.
+
+---
+
+## 📦 Despliegue
+
+```bash
+# Despliegue a Cloud Run (desde el root del repositorio)
+gcloud builds submit \
+  --config apis/knowledge_stores/deploy/cloudbuild.yaml \
+  --gcs-source-staging-dir=gs://que-vino-23032025-cloudbuild/source \
+  .
+```
+
+---
+© 2026 Que Vino!? — Constitución v1.5.2 | Agentic Architecture.

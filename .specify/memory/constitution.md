@@ -466,4 +466,4 @@ Para garantizar la mantenibilidad y la iteración rápida de la lógica de IA:
 4. **Estructura y Nomenclatura:** Dentro de `prompts/`, los archivos deben nombrarse de forma descriptiva (ej. `system_prompt.md`, `extraction_logic.md`).  
 5. **Inyección Dinámica:** El código Python debe cargar estos archivos Markdown y realizar las sustituciones de variables necesarias antes de enviarlos al modelo.
 
-**Version**: 1.5.1 | **Ratified**: 17 de marzo de 2026 | **Last Amended**: 1 de abril de 2026
+**Version**: 1.5.2 | **Ratified**: 17 de marzo de 2026 | **Last Amended**: 2 de abril de 2026

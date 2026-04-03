@@ -15,8 +15,8 @@ Cada microservicio se despliega de forma independiente en **Google Cloud Run** y
 | :--- | :--- | :--- | :--- |
 | **Stores API** | `https://quevino-stores-2lkhisz2aa-uc.a.run.app` | `apis/stores/` | Gestión centralizada de marcas y tiendas. |
 | **Locations API** | `https://quevino-locations-2lkhisz2aa-uc.a.run.app` | `apis/locations/` | Catálogo de sucursales físicas y horarios. |
-| **Knowledge Stores API** | `https://quevino-knowledge-stores-678275032484.us-central1.run.app` | `apis/knowledge_stores/` | Gestión de RAG (Red de Conocimiento) con Gemini File Search. |
-| **Audio API** | `https://quevino-audio-678275032484.us-central1.run.app` | `apis/audio/` | Generación de voz (TTS) enriquecida. |
+| **Knowledge Stores API** | `https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app` | `apis/knowledge_stores/` | Gestión de RAG (Red de Conocimiento) con Gemini File Search. |
+| **Audio API** | `https://quevino-audio-2lkhisz2aa-uc.a.run.app` | `apis/audio/` | Generación de voz (TTS) enriquecida. |
 
 ---
 
@@ -24,7 +24,7 @@ Cada microservicio se despliega de forma independiente en **Google Cloud Run** y
 - **Lenguaje**: Python 3.12+ (FastAPI)
 - **Infraestructura**: Google Cloud Platform (Cloud Run, GCS, BigQuery, Vertex AI)
 - **Identidad**: Firebase Authentication (Google Identity Platform)
-- **Agentes**: FastMCP SDK
+- **Agentes**: FastMCP SDK + ADK
 - **Dependencias**: Poetry
 - **CORS**: Soporte oficial para `quevino.mx`, `lovable.app` y `lovableproject.com`.
 
@@ -35,15 +35,35 @@ Cada microservicio se despliega de forma independiente en **Google Cloud Run** y
 Todas las APIs requieren un **Firebase ID Token** válido en el header `Authorization`.
 
 ### Cómo obtener un Token:
-Si posees las credenciales (email/password) y la `FIREBASE_API_KEY`:
 
-**Endpoint**: `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=[FIREBASE_API_KEY]`
+```bash
+curl -X POST \
+  "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=<FIREBASE_API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "usuario@ejemplo.com", "password": "contraseña", "returnSecureToken": true}'
+```
+
+---
+
+## 🧪 Estándar de Pruebas (Sección 7.2)
+
+Cada microservicio incluye un script de integración estandarizado que prueba todos sus endpoints en producción y genera un reporte en Markdown.
+
+```bash
+# Pruebas de Audio API
+python3 apis/audio/tests/test_production.py
+
+# Pruebas de Knowledge Stores API
+python3 apis/knowledge_stores/tests/test_production.py
+```
+
+Cada script genera su propio `tests/TEST_RESULTS.md` con los llamados HTTP completos y las respuestas de producción.
 
 ---
 
 ## 📜 Inventario de Herramientas (OpenClaw)
 Para una lista detallada de todos los endpoints, parámetros y esquemas de datos:
-👉 [OPENCLAW_TOOLS.md](file:///Users/gustavovelazuniga/Desarrollo/que-vino-backend/OPENCLAW_TOOLS.md)
+👉 [OPENCLAW_TOOLS.md](OPENCLAW_TOOLS.md)
 
 ---
-© 2026 Que Vino!? - Configurado bajo la Constitución v1.5.1.
+© 2026 Que Vino!? - Configurado bajo la Constitución v1.5.2.

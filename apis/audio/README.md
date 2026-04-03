@@ -2,6 +2,10 @@
 
 El micro-swarm de **Audio** es el motor unificado de síntesis de voz (Text-to-Speech) para la plataforma **Que Vino!?**. Este servicio centraliza la generación de audio de alta fidelidad utilizando múltiples proveedores y capacidades de enriquecimiento emocional mediante IA.
 
+- **URL Producción**: `https://quevino-audio-2lkhisz2aa-uc.a.run.app`
+- **Repositorio**: `apis/audio/`
+- **Resultados de Prueba**: [`tests/TEST_RESULTS.md`](tests/TEST_RESULTS.md)
+
 ---
 
 ## 🎭 Proveedores de Voz Soportados
@@ -14,88 +18,141 @@ El micro-swarm de **Audio** es el motor unificado de síntesis de voz (Text-to-S
 
 ## 🛠️ API REST Reference
 
-Todas las peticiones deben incluir un **Firebase ID Token** en el header `Authorization`.
+Todas las peticiones deben incluir un **Firebase ID Token** en el header `Authorization: Bearer <ID_TOKEN>`.
 
-### 1. Generación de Audio (Stream)
-- **POST** `/audio/generate`
-- **Body**:
-```json
-{
-  "text": "Hola, bienvenido al club de vinos Que Vino!? ¿En qué puedo ayudarte?",
-  "provider": "ELEVENLABS" | "GOOGLE",
-  "voice_id": "rachel" | "es-US-Neural2-A",
-  "model_id": "eleven_multilingual_v2" | "eleven_v3",
-  "output_format": "mp3" | "wav",
-  "enrich_audio": true 
-}
+### 1. Generación de Audio
+
+**POST** `/audio/generate`
+
+```bash
+curl -X POST "https://quevino-audio-2lkhisz2aa-uc.a.run.app/audio/generate" \
+  -H "Authorization: Bearer <ID_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Bienvenido a Que Vino!? Tu sommelier digital.",
+    "provider": "ELEVENLABS",
+    "voice_id": "kh59ZgGFT1YQNe4P0U2V",
+    "model_id": "eleven_multilingual_v2",
+    "output_format": "mp3",
+    "enrich_audio": false
+  }' \
+  --output audio.mp3
 ```
-- **Parámetros**:
-  - `text` (string): Requerido. El mensaje a convertir en voz.
-  - `provider` (string): Requerido. `ELEVENLABS` o `GOOGLE`.
-  - `voice_id` (string): Requerido. ID de la voz seleccionada.
-  - `model_id` (string): Opcional. ID del modelo de síntesis (ej: `eleven_multilingual_v2`, `eleven_v3`). Predeterminado según el proveedor.
-  - `output_format` (string): Opcional. Predeterminado `mp3`.
-  - `enrich_audio` (boolean): Opcional. Activa el análisis de Gemini para inyectar marcadores de entonación.
-- **Respuesta (201 Created)**: Byte Stream binario (Content-Type: `audio/mpeg` o `audio/wav`).
-- **Headers Traceability**:
-  - `X-Generation-ID`: UUID único de la generación, guardado en GCS para auditoría.
-  - `X-Enrichment-Status`: `ENABLED` | `FAILED` | `DISABLED`.
 
-### 2. Listar Voces Unidas
-- **GET** `/audio/providers/voices`
-- **Header**: `Authorization: Bearer <ID_TOKEN>`
-- **Descripción**: Expone un catálogo unificado de voces de ElevenLabs y Google mapeadas bajo un esquema común de género y estilo.
-- **Respuesta**:
+| Parámetro | Tipo | Req. | Descripción |
+|---|---|---|---|
+| `text` | string | ✅ | Texto a convertir en voz. |
+| `provider` | string | ✅ | `ELEVENLABS` o `GOOGLE`. |
+| `voice_id` | string | ✅ | ID de la voz. Obtener de `GET /audio/providers/voices`. |
+| `model_id` | string | ❌ | Modelo de síntesis (ej: `eleven_multilingual_v2`, `eleven_v3`). Por defecto según proveedor. |
+| `output_format` | string | ❌ | `mp3` (defecto) o `wav`. |
+| `enrich_audio` | boolean | ❌ | Activa análisis de Gemini para inyectar marcadores de entonación. |
+
+**Respuesta (201 Created)**: Byte stream binario (`audio/mpeg` o `audio/wav`).
+
+**Headers de Trazabilidad**:
+- `X-Generation-ID`: UUID único de la generación, persistido en GCS para auditoría.
+- `X-Enrichment-Status`: `ENABLED` | `FAILED` | `DISABLED`.
+
+---
+
+### 2. Listar Voces Disponibles
+
+**GET** `/audio/providers/voices`
+
+```bash
+curl "https://quevino-audio-2lkhisz2aa-uc.a.run.app/audio/providers/voices" \
+  -H "Authorization: Bearer <ID_TOKEN>"
+```
+
+**Respuesta (200)**:
 ```json
 [
-  { "id": "rachel", "provider": "ELEVENLABS", "gender": "Female", "description": "Bright, clear for narration", "language": "es" },
-  { "id": "es-US-Neural2-A", "provider": "GOOGLE", "gender": "Female", "description": "Standard neural for technical responses", "language": "es" }
+  { "provider": "ELEVENLABS", "voice_id": "kh59ZgGFT1YQNe4P0U2V", "name": "Rachel", "languages": ["es"], "category": "premade" },
+  { "provider": "GOOGLE", "voice_id": "es-US-Neural2-A", "name": "es-US-Neural2-A", "languages": ["es-US"], "ssml_gender": "FEMALE", "natural_sample_rate_hertz": 24000 }
 ]
 ```
 
-### 3. Salud del Servicio
-- **GET** `/health`
-- **Respuesta**: `{"status": "ok", "service": "que-vino-audio-api"}`
+---
+
+### 3. Listar Modelos Disponibles
+
+**GET** `/audio/providers/models`
+
+```bash
+curl "https://quevino-audio-2lkhisz2aa-uc.a.run.app/audio/providers/models" \
+  -H "Authorization: Bearer <ID_TOKEN>"
+```
+
+---
+
+### 4. Salud del Servicio
+
+**GET** `/health` *(sin autenticación)*
+
+```bash
+curl "https://quevino-audio-2lkhisz2aa-uc.a.run.app/health"
+# → {"status": "ok", "service": "que-vino-audio-api"}
+```
 
 ---
 
 ## 🕵️ Auditoría y Persistencia
 
-Siguiendo la **Sección 6.192 de la Constitución de Que Vino!?**:
-- Cada audio generado se persiste automáticamente en un bucket de **GCS** (`que-vino-[ID]-media/audio`).
-- Cada transacción se registra en **BigQuery** (`src_api_transactions.audio_generation_log`).
+Cada audio generado se persiste automáticamente en:
+- **GCS**: Bucket `que-vino-23032025-audios` (configurado en `GCS_AUDIO_BUCKET_NAME`).
+- **BigQuery**: Tabla `src_api_transactions.audio_generation_log`.
 
 ---
 
-## 🔒 Autenticación (Auth)
+## 🔒 Autenticación
 
 El microservicio utiliza **Firebase Authentication**.
 
-**Token URL**: `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=[FIREBASE_API_KEY]`
+```bash
+# Obtener Firebase ID Token
+curl -X POST \
+  "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=<FIREBASE_API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "usuario@ejemplo.com", "password": "contraseña", "returnSecureToken": true}'
+```
 
 ---
 
 ## ⚙️ Configuración (Environment)
 
-Asegúrate de configurar las siguientes variables en el `.env` o en Cloud Run:
-- `GEMINI_AUDIO_API_KEY`: Para el enriquecimiento emocional.
-- `ELEVENLABS_AUDIO_API_KEY`: API Key de ElevenLabs.
-- `GCS_AUDIO_BUCKET_NAME`: Bucket de salida para auditoría.
+| Variable | Descripción |
+|---|---|
+| `GEMINI_AUDIO_API_KEY` | API Key de Gemini para enriquecimiento emocional. |
+| `ELEVENLABS_AUDIO_API_KEY` | API Key de ElevenLabs. |
+| `GCS_AUDIO_BUCKET_NAME` | Bucket de GCS para persistencia de audios. |
 
 > [!IMPORTANT]
-> **Timeout de Producción**: Para evitar errores 502/504 en Cloud Run durante la generación de audios largos (>30s), se recomienda que el servicio de Cloud Run tenga un timeout configurado de al menos **120 segundos**. Internamente, el microservicio maneja un timeout de hasta 90 segundos para las peticiones a proveedores externos.
+> **Timeout de Producción**: Para evitar errores 502/504 en Cloud Run en audios largos (>30s), el servicio debe tener un timeout configurado de al menos **120 segundos**. Internamente, el microservicio maneja un timeout máximo de 90 segundos hacia los proveedores externos.
 
 ---
 
-## 📦 Desarrollo y Despliegue
+## 🧪 Pruebas de Integración
+
+Ejecutar desde la raíz del repositorio:
 
 ```bash
-# Ejecución Local
-python main.py
+python3 apis/audio/tests/test_production.py
+```
 
-# Despliegue Cloud Run (Usa Cloud Build) - Ejecutar desde el root del repositorio
-gcloud builds submit --config apis/audio/deploy/cloudbuild.yaml .
+Genera `apis/audio/tests/TEST_RESULTS.md` con el detalle de todos los llamados a producción y sus respuestas.
+
+---
+
+## 📦 Despliegue
+
+```bash
+# Despliegue a Cloud Run (desde el root del repositorio)
+gcloud builds submit \
+  --config apis/audio/deploy/cloudbuild.yaml \
+  --gcs-source-staging-dir=gs://que-vino-23032025-cloudbuild/source \
+  .
 ```
 
 ---
-© 2026 Que Vino!? - Constitución y Reglas de Agentic Architecture.
+© 2026 Que Vino!? — Constitucion v1.5.2 | Agentic Architecture.
