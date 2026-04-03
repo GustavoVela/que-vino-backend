@@ -105,13 +105,30 @@ def list_documents(store_name: str) -> List[dict]:
     try:
         # En el SDK 1.x, el parent es el nombre completo del store
         docs = client.file_search_stores.documents.list(parent=store_name)
-        return [
-            {
+        
+        results = []
+        for d in docs:
+            # Reconstruir el diccionario de metadata desde el formato del SDK
+            meta_dict = {}
+            # El SDK puede devolverlo como 'custom_metadata' o 'metadata' dependiendo de la versión
+            raw_meta = getattr(d, 'custom_metadata', getattr(d, 'metadata', []))
+            
+            if isinstance(raw_meta, list):
+                for m in raw_meta:
+                    if hasattr(m, 'key'):
+                        if hasattr(m, 'string_value') and m.string_value is not None:
+                            meta_dict[m.key] = m.string_value
+                        elif hasattr(m, 'numeric_value') and m.numeric_value is not None:
+                            meta_dict[m.key] = m.numeric_value
+                        elif hasattr(m, 'string_list_value') and m.string_list_value is not None:
+                            meta_dict[m.key] = getattr(m.string_list_value, 'values', [])
+            
+            results.append({
                 "id": d.name, 
                 "display_name": d.display_name, 
-                "metadata": getattr(d, 'metadata', {})
-            } for d in docs
-        ]
+                "metadata": meta_dict
+            })
+        return results
     except Exception as e:
         logging.error(f"Error al listar documentos en {store_name}: {str(e)}")
         raise e
@@ -160,13 +177,26 @@ def upload_document(store_name: str, display_name: str, data: bytes, metadata: d
             tmp.write(data)
             tmp_path = tmp.name
             
+        # Convertir diccionario de metadata a lista de CustomMetadata para el SDK
+        custom_metadata = []
+        if metadata:
+            for k, v in metadata.items():
+                if isinstance(v, (int, float)):
+                    custom_metadata.append(types.CustomMetadata(key=k, numeric_value=float(v)))
+                elif isinstance(v, list):
+                    # Asumimos lista de strings para simplicity
+                    custom_metadata.append(types.CustomMetadata(key=k, string_list_value=types.StringList(values=[str(i) for i in v])))
+                else:
+                    custom_metadata.append(types.CustomMetadata(key=k, string_value=str(v)))
+
         try:
             # Operación de carga atómica e indexación
             doc = client.file_search_stores.upload_to_file_search_store(
                 file=tmp_path,
                 file_search_store_name=store_name,
                 config=types.UploadToFileSearchStoreConfig(
-                    display_name=display_name
+                    display_name=display_name,
+                    custom_metadata=custom_metadata
                 )
             )
             # Retorna el nombre del recurso si la operación fue inmediata (LRO)
