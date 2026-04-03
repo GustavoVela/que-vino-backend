@@ -2,7 +2,7 @@
 
 **Entorno:** Producción (Cloud Run)  
 **URL Base:** `https://quevino-audio-2lkhisz2aa-uc.a.run.app`  
-**Fecha:** 2026-04-02 18:26:12  
+**Fecha:** 2026-04-02 18:32:13  
 **Resultado:** `6/6` pruebas exitosas  
 
 ---
@@ -22077,8 +22077,8 @@ POST https://quevino-audio-2lkhisz2aa-uc.a.run.app/audio/generate
 ```json
 {
   "content_type": "audio/mpeg",
-  "size_bytes": 67335,
-  "X-Generation-ID": "a0b53698-5a60-45a5-a1c7-a835fc2e9dbb",
+  "size_bytes": 64827,
+  "X-Generation-ID": "d9bc9cc8-3c53-41e8-81c0-91d5d7c66fa3",
   "X-Enrichment-Status": "SKIPPED"
 }
 ```
