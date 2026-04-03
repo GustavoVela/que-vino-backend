@@ -71,7 +71,7 @@ def upsert_user_bq(decoded_token: Dict[str, Any]):
         {"name": "photo", "type": "STRING", "value": photo_url},
         {"name": "phone", "type": "STRING", "value": phone_number},
         {"name": "provider", "type": "STRING", "value": provider_id},
-        {"name": "verified", "type": "BOOLEAN", "value": email_verified},
+        {"name": "verified", "type": "BOOL", "value": email_verified},
         {"name": "now", "type": "TIMESTAMP", "value": now}
     ]
 

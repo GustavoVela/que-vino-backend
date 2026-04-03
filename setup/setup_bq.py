@@ -103,7 +103,7 @@ audio_generation_log_schema = [
     {"name": "performed_by_user_id",  "type": "STRING",    "mode": "REQUIRED",  "description": "Firebase UID del usuario"},
     {"name": "provider",              "type": "STRING",    "mode": "REQUIRED",  "description": "ELEVENLABS | GOOGLE"},
     {"name": "voice_id",              "type": "STRING",    "mode": "REQUIRED",  "description": "ID de la voz usada"},
-    {"name": "is_enriched",           "type": "BOOLEAN",   "mode": "REQUIRED",  "description": "¿Se enriqueció el texto con IA?"},
+    {"name": "is_enriched",           "type": "BOOL",      "mode": "REQUIRED",  "description": "¿Se enriqueció el texto con IA?"},
     {"name": "text_input",            "type": "STRING",    "mode": "REQUIRED",  "description": "Texto original enviado"},
     {"name": "text_processed",        "type": "STRING",    "mode": "NULLABLE",  "description": "Texto enriquecido (si aplica)"},
     {"name": "status",                "type": "STRING",    "mode": "REQUIRED",  "description": "SUCCESS | ERROR_*"},

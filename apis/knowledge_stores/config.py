@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     google_api_key: Optional[str] = None
     firebase_api_key: Optional[str] = None
     
+    # GCS Settings
+    # En desarrollo/prod usamos que-vino-23032025-databases como bucket central de conocimiento
+    base_knowledge_bucket: str = "que-vino-23032025-databases"
+    
     # Firebase Auth
     firebase_project_id: str = "que-vino-23032025"
 

@@ -4,7 +4,7 @@ def get_users_schema():
     return [
         bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
         bigquery.SchemaField("email", "STRING", mode="REQUIRED"),
-        bigquery.SchemaField("email_verified", "BOOLEAN", mode="REQUIRED"),
+        bigquery.SchemaField("email_verified", "BOOL", mode="REQUIRED"),
         bigquery.SchemaField("display_name", "STRING", mode="REQUIRED"),
         bigquery.SchemaField("photo_url", "STRING", mode="NULLABLE"),
         bigquery.SchemaField("phone_number", "STRING", mode="NULLABLE"),

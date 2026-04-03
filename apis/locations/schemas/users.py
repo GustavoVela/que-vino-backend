@@ -3,7 +3,7 @@ from typing import Dict, Any, List
 users_table_schema = [
     {"name": "id", "type": "STRING", "mode": "REQUIRED", "description": "UID de Firebase (Primary Key)."},
     {"name": "email", "type": "STRING", "mode": "REQUIRED", "description": "Correo electronico principal del usuario."},
-    {"name": "email_verified", "type": "BOOLEAN", "mode": "REQUIRED", "description": "Indica si el correo ha sido verificado en el proveedor."},
+    {"name": "email_verified", "type": "BOOL", "mode": "REQUIRED", "description": "Indica si el correo ha sido verificado en el proveedor."},
     {"name": "display_name", "type": "STRING", "mode": "REQUIRED", "description": "Nombre a mostrar del usuario."},
     {"name": "photo_url", "type": "STRING", "mode": "NULLABLE", "description": "URL de la foto de perfil."},
     {"name": "phone_number", "type": "STRING", "mode": "NULLABLE", "description": "Numero de telefono asociado a la cuenta."},

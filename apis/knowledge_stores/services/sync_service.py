@@ -133,11 +133,28 @@ async def sync_bucket_to_gemini(bucket_name: str, user_id: str, transaction_id: 
         else:
             store_id = target_store["id"]
         
-        # 2. Análisis de Inventario Local (GCS)
-        gcs_inventory = gcs_client.list_blobs_with_metadata(bucket_name, prefix=prefix)
+        # 2. Resolución de origen GCS (Bucket Resolver)
+        # Si el bucket no existe por sí solo, lo mapeamos como una folder dentro del bucket central
+        gcs_bucket = bucket_name
+        gcs_prefix = prefix
+        
+        try:
+            # Verificamos si el bucket existe por su nombre
+            # Nota: Usamos una llamada ligera para verificar existencia
+            gcs_client.get_gcs_client().get_bucket(bucket_name)
+            logging.info(f"Sincronizando bucket nativo: {bucket_name}")
+        except Exception:
+            # Fallback a la carpeta dentro del bucket central de conocimiento
+            gcs_bucket = settings.base_knowledge_bucket
+            # Si ya hay un prefijo, lo unimos. Si no, usamos el nombre del "bucket" como folder raíz.
+            gcs_prefix = f"{bucket_name}/{prefix}" if prefix else f"{bucket_name}/"
+            logging.info(f"Bucket '{bucket_name}' no encontrado; realizando fallback a {gcs_bucket} con prefijo {gcs_prefix}")
+
+        # 3. Análisis de Inventario Local (GCS)
+        gcs_inventory = gcs_client.list_blobs_with_metadata(gcs_bucket, prefix=gcs_prefix)
         gcs_dict = {item["name"]: item["size"] for item in gcs_inventory}
         
-        # 3. Análisis de Inventario Remoto (Gemini)
+        # 4. Análisis de Inventario Remoto (Gemini)
         gemini_items = gemini_client.list_documents(store_id)
         gemini_dict = {}
         for item in gemini_items:
@@ -157,7 +174,7 @@ async def sync_bucket_to_gemini(bucket_name: str, user_id: str, transaction_id: 
             if file_name.endswith('/'): # Omitir directorios virtuales
                 continue
             tasks.append(process_file_sync(
-                file_name, gcs_size, bucket_name, store_id, user_id, transaction_id, gemini_dict, semaphore
+                file_name, gcs_size, gcs_bucket, store_id, user_id, transaction_id, gemini_dict, semaphore
             ))
         
         # Ejecución masiva y recolección de resultados
@@ -177,8 +194,8 @@ async def sync_bucket_to_gemini(bucket_name: str, user_id: str, transaction_id: 
                 try:
                     gemini_client.delete_document(info["id"])
                     summary["deleted"] += 1
-                    log_sync_action(transaction_id, bucket_name, store_id, gemini_name, "DELETED_ORPHAN", info["size"], user_id)
-                    logging.info(f"Documento huérfano eliminado: {gemini_name}")
+                    log_sync_action(transaction_id, gcs_bucket, store_id, gemini_name, "DELETED_ORPHAN", info["size"], user_id)
+                    logging.info(f"Documento huérfano eliminado: {gemini_name} del bucket {gcs_bucket}")
                 except Exception as e:
                     logging.error(f"Error al eliminar documento huérfano {gemini_name}: {str(e)}")
                     summary["errors"] += 1
