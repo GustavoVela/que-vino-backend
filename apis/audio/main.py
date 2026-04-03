@@ -1,5 +1,6 @@
 import time
 import uuid
+import json
 from datetime import datetime
 from typing import Any, Callable
 
@@ -55,34 +56,34 @@ app.add_middleware(AuthMiddleware)
 
 
 # Middleware de Auditoría de Transacciones API (Sección 6.192)
+# FIX CRÍTICO: El bug original sobreescribía request._receive con una función
+# que solo devuelve 'http.request'. Esto corrompe el ciclo de vida de
+# StreamingResponse (respuesta binaria de audio), que llama receive() para
+# detectar desconexiones esperando 'http.disconnect', causando:
+#   RuntimeError: Unexpected message received: http.request
+# SOLUCIÓN: Usar request.body() directamente (Starlette lo cachea internamente
+# tras la primera lectura), eliminando la necesidad de hackear _receive.
 class APILoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable):
         transaction_id = str(uuid.uuid4())
         request.state.transaction_id = transaction_id
-        start_time = time.time()
 
-        # Captura del cuerpo solo en rutas críticas de generación
+        # Captura del cuerpo solo en rutas críticas de generación.
+        # request.body() cachea el body en Starlette tras la primera llamada.
+        # NO sobreescribir request._receive — rompe StreamingResponse.
         request_body = None
         if request.method == "POST" and "/audio/generate" in request.url.path:
             try:
                 body_bytes = await request.body()
-                try:
-                    import json
-                    request_body = json.loads(body_bytes.decode())
-                except Exception:
-                    request_body = {"raw": body_bytes.decode()}
-                
-                async def receive():
-                    return {"type": "http.request", "body": body_bytes}
-                request._receive = receive
+                request_body = json.loads(body_bytes.decode())
             except Exception:
                 request_body = None
 
         response = await call_next(request)
-        
+
         user_id = getattr(request.state, "user", {}).get("uid")
         bg_tasks = BackgroundTasks()
-        
+
         if request.url.path not in ["/docs", "/openapi.json", "/health", "/"]:
             log_entry = APITransactionBase(
                 transaction_id=transaction_id,
@@ -95,6 +96,7 @@ class APILoggingMiddleware(BaseHTTPMiddleware):
             )
             bg_tasks.add_task(bq_service.log_api_transaction, log_entry)
 
+        response.background = bg_tasks
         return response
 
 
@@ -120,7 +122,7 @@ async def list_models():
 
 @app.post("/audio/generate")
 async def generate_audio(
-    payload: dict, 
+    payload: dict,
     request: Request,
     bg_tasks: BackgroundTasks
 ):
@@ -131,7 +133,7 @@ async def generate_audio(
     text = payload.get("text")
     provider = payload.get("provider")
     voice_id = payload.get("voice_id")
-    model_id = payload.get("model_id") or payload.get("model") # Accept both
+    model_id = payload.get("model_id") or payload.get("model")  # Accept both
     output_format = payload.get("output_format", "mp3")
     enrich_audio = payload.get("enrich_audio", False)
 
@@ -166,10 +168,10 @@ async def generate_audio(
         "X-Generation-ID": metadata["generation_id"],
         "X-Enrichment-Status": metadata["enrichment_status"]
     }
-    
+
     return Response(
-        content=audio_bytes, 
-        media_type=media_type, 
+        content=audio_bytes,
+        media_type=media_type,
         headers=headers,
         status_code=201
     )

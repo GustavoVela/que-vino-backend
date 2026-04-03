@@ -80,7 +80,9 @@ async def get_store_files(request: Request, store_id: str, background_tasks: Bac
     """Lista todos los archivos de un store específico."""
     user_id = getattr(request.state, "user", {}).get("uid", "SYSTEM")
     try:
-        files = list_documents(store_id)
+        # El store_id de la URL es el ID corto. Gemini requiere el nombre completo.
+        full_store_name = store_id if store_id.startswith("fileSearchStores/") else f"fileSearchStores/{store_id}"
+        files = list_documents(full_store_name)
         background_tasks.add_task(log_api_transaction_async, "UNKNOWN", store_id, user_id, "LIST_FILES")
         return files
     except Exception as e:
@@ -118,7 +120,8 @@ async def remove_store(request: Request, store_id: str, background_tasks: Backgr
     """Elimina un store completo."""
     user_id = getattr(request.state, "user", {}).get("uid", "SYSTEM")
     try:
-        delete_store(store_id)
+        full_store_name = store_id if store_id.startswith("fileSearchStores/") else f"fileSearchStores/{store_id}"
+        delete_store(full_store_name)
         background_tasks.add_task(log_api_transaction_async, "UNKNOWN", store_id, user_id, "DELETE_STORE", "DELETE")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
