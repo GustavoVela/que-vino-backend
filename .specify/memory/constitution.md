@@ -201,11 +201,233 @@ Al no existir bases de datos transaccionales clásicas ni cachés, BigQuery es e
 
 ## 7. Pruebas y Despliegue Unitario
 
-1. **Carpeta de Tests:** Cada utilidad (Agente o API) **DEBE** tener adentro su propia carpeta /tests/. Esto asegura que cada microservicio se pruebe de manera completamente aislada.  
-2. **Carpeta de Deploy:** Cada API o agente **DEBE** tener su propia carpeta /deploy/ que contenga el Dockerfile, archivos de configuración de Cloud Run, y scripts de CI/CD específicos para explicar y ejecutar el despliegue de esa sola parte.
+### 7.1. Carpeta de Tests y Deploy
+
+1. **Carpeta de Tests:** Cada utilidad (Agente o API) **DEBE** tener adentro su propia carpeta `/tests/`. Esto asegura que cada microservicio se pruebe de manera completamente aislada.  
+2. **Carpeta de Deploy:** Cada API o agente **DEBE** tener su propia carpeta `/deploy/` que contenga el Dockerfile, archivos de configuración de Cloud Run, y scripts de CI/CD específicos para explicar y ejecutar el despliegue de esa sola parte.
 3. **Infraestructura Obligatoria (GCP):**
    * **Cuenta de Servicio Cloud Run:** Todos los servicios desplegados en Cloud Run deben configurarse para usar la cuenta de servicio de mínimos privilegios asignada al proyecto (ej. `cloud-run-apis@que-vino-23032025.iam.gserviceaccount.com`).
    * **Despliegue Directo:** Para los despliegues usando `cloudbuild.yaml` se DEBE utilizar obligatoriamente el bucket de Cloud Storage asignado internamente ejecutando: `gcloud builds submit --config <RUTA_YAML> --gcs-source-staging-dir=gs://que-vino-23032025-cloudbuild/source .`. Esto asegura que los archivos fuentes se empaquen y almacenen debidamente con los permisos corporativos correctos antes de la compilación en Artifact Registry / Container Registry.
+
+### 7.2. Estándar de Pruebas de Integración en Producción
+
+Todo API o Agente debe incluir obligatoriamente en su carpeta `/tests/` un script de integración estandarizado que valide su correcto funcionamiento contra el entorno de **producción en Cloud Run**, no contra mocks ni entornos locales.
+
+#### 7.2.1. Archivo Obligatorio: `test_production.py`
+
+Cada microservicio **DEBE** contener el archivo `tests/test_production.py` con las siguientes características:
+
+* **Sin dependencias externas**: Debe usar exclusivamente la `stdlib` de Python (`urllib`, `json`, `datetime`). Esto garantiza que el script sea ejecutable sin instalar dependencias adicionales (`pip install` no debe ser requerido).
+* **Autenticación real**: Debe obtener un Firebase ID Token real usando las credenciales de la variable de entorno `FIREBASE_TEST_USER_EMAIL` / `FIREBASE_TEST_USER_PASSWORD` del `.env` del proyecto. No se permiten tokens quemados en el código.
+* **Cobertura total de endpoints**: Debe cubrir **todos** los endpoints del microservicio sin excepción, incluyendo variantes de éxito (2xx) y error (401, 404, 422).
+* **URL de producción hardcodeada**: La URL base del Cloud Run de producción se define como constante en el propio script (ej: `BASE_URL = "https://quevino-audio-xxx-uc.a.run.app"`).
+* **Generación automática de reporte**: Al finalizar, el script **DEBE** generar o sobreescribir el archivo `tests/TEST_RESULTS.md` con el reporte completo en formato Markdown.
+
+#### 7.2.2. Estructura Mínima de `test_production.py`
+
+```python
+#!/usr/bin/env python3
+"""
+Test de integración en producción para <NOMBRE-DEL-MICROSERVICIO>.
+Ejecutar desde la raíz del repositorio: python3 apis/<nombre>/tests/test_production.py
+Genera: apis/<nombre>/tests/TEST_RESULTS.md
+"""
+import urllib.request, urllib.error, json, os, sys
+from datetime import datetime
+from pathlib import Path
+
+# ── Constantes ─────────────────────────────────────────────────────────────
+BASE_URL    = "https://<cloud-run-url>.run.app"   # URL de producción
+ENV_FILE    = Path(__file__).parents[3] / ".env"  # Ruta al .env del repo
+OUTPUT_FILE = Path(__file__).parent / "TEST_RESULTS.md"
+
+# ── Helpers ─────────────────────────────────────────────────────────────────
+def load_env(path: Path) -> dict:
+    """Carga variables del .env sin dependencias externas."""
+    env = {}
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                env[k.strip()] = v.strip().strip('"')
+    return env
+
+def http(method: str, url: str, token: str = None, body: dict = None, timeout: int = 30):
+    """Petición HTTP usando solo stdlib. Devuelve (status_code, dict|str)."""
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    data = json.dumps(body).encode() if body else None
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            raw = r.read().decode()
+            return r.status, json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode()
+        try:    return e.code, json.loads(raw)
+        except: return e.code, raw
+    except Exception as ex:
+        return None, str(ex)
+
+def get_token(env: dict) -> str:
+    """Obtiene un Firebase ID Token real para el usuario de pruebas."""
+    api_key = env.get("FIREBASE_API_KEY", "")
+    url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
+    status, resp = http("POST", url, body={
+        "email": env.get("FIREBASE_TEST_USER_EMAIL"),
+        "password": env.get("FIREBASE_TEST_USER_PASSWORD"),
+        "returnSecureToken": True
+    })
+    if status == 200 and isinstance(resp, dict):
+        return resp["idToken"]
+    raise RuntimeError(f"Auth fallida ({status}): {resp}")
+
+# ── Runner de tests ──────────────────────────────────────────────────────────
+results = []
+
+def test(label: str, method: str, path: str, token: str = None,
+         body: dict = None, expected_status: int = 200, timeout: int = 30):
+    """Ejecuta y registra una prueba individual."""
+    url = f"{BASE_URL}{path}"
+    status, resp = http(method, url, token=token, body=body, timeout=timeout)
+    passed = status == expected_status
+    results.append({
+        "label": label, "method": method, "url": url,
+        "body": body, "status": status,
+        "expected": expected_status, "passed": passed, "response": resp
+    })
+    icon = "✅" if passed else "❌"
+    print(f"  {icon} [{status}] {method} {path}")
+    return status, resp
+
+# ── Generador de Reporte ─────────────────────────────────────────────────────
+def write_report():
+    """Genera TEST_RESULTS.md con todos los resultados de la prueba."""
+    passed = sum(1 for r in results if r["passed"])
+    total  = len(results)
+    now    = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    lines = [
+        f"# Test Results — <NOMBRE-DEL-MICROSERVICIO>",
+        f"",
+        f"**Entorno:** Producción (Cloud Run)  ",
+        f"**URL Base:** `{BASE_URL}`  ",
+        f"**Fecha:** {now}  ",
+        f"**Resultado:** `{passed}/{total}` pruebas exitosas",
+        f"",
+        f"---",
+        f"",
+    ]
+    for r in results:
+        icon = "✅ PASS" if r["passed"] else "❌ FAIL"
+        lines += [
+            f"## {icon} — {r['label']}",
+            f"",
+            f"**Request:**",
+            f"```",
+            f"{r['method']} {r['url']}",
+        ]
+        if r["body"]:
+            lines.append(json.dumps(r["body"], indent=2, ensure_ascii=False))
+        lines += [
+            f"```",
+            f"",
+            f"**Response:** HTTP `{r['status']}` (esperado: `{r['expected']}`)",
+            f"```json",
+            json.dumps(r["response"], indent=2, ensure_ascii=False)
+            if isinstance(r["response"], (dict, list)) else str(r["response"]),
+            f"```",
+            f"",
+            f"---",
+            f"",
+        ]
+    OUTPUT_FILE.write_text("\n".join(lines), encoding="utf-8")
+    print(f"\n📄 Reporte generado: {OUTPUT_FILE}")
+
+# ── Main ─────────────────────────────────────────────────────────────────────
+def main():
+    env = load_env(ENV_FILE)
+    print(f"\n🔍 Testing <NOMBRE-DEL-MICROSERVICIO> @ {BASE_URL}\n")
+
+    # 1. Health (endpoint público, sin token)
+    test("GET /health — Endpoint público", "GET", "/health", expected_status=200)
+
+    # 2. Autenticación
+    try:
+        token = get_token(env)
+        print(f"  🔑 Token obtenido para {env.get('FIREBASE_TEST_USER_EMAIL')}")
+    except Exception as e:
+        print(f"  💥 Auth fallida: {e}")
+        write_report(); sys.exit(1)
+
+    # 3. ... (agregar tests específicos de cada microservicio)
+    # test("GET /recurso — Listar recursos", "GET", "/recurso", token=token)
+    # test("POST /recurso — Crear recurso", "POST", "/recurso", token=token,
+    #      body={"campo": "valor"}, expected_status=201)
+    # test("GET /recurso — Sin token (esperado 401)", "GET", "/recurso", expected_status=401)
+
+    write_report()
+    passed = sum(1 for r in results if r["passed"])
+    sys.exit(0 if passed == len(results) else 1)
+
+if __name__ == "__main__":
+    main()
+```
+
+#### 7.2.3. Archivo Obligatorio: `tests/TEST_RESULTS.md`
+
+El reporte generado por `test_production.py` debe seguir este formato mínimo:
+
+```markdown
+# Test Results — <Nombre del Microservicio>
+
+**Entorno:** Producción (Cloud Run)
+**URL Base:** `https://<url>.run.app`
+**Fecha:** YYYY-MM-DD HH:MM:SS
+**Resultado:** `N/N` pruebas exitosas
+
+---
+
+## ✅ PASS — GET /health — Endpoint público
+
+**Request:**
+```
+GET https://<url>.run.app/health
+```
+
+**Response:** HTTP `200` (esperado: `200`)
+```json
+{ "status": "ok" }
+```
+
+---
+
+## ❌ FAIL — GET /recurso — Con token válido
+
+**Request:**
+```
+GET https://<url>.run.app/recurso
+Authorization: Bearer <token>
+```
+
+**Response:** HTTP `500` (esperado: `200`)
+```json
+{ "error_code": "...", "message": "..." }
+```
+```
+
+#### 7.2.4. Reglas de Ejecución
+
+* El script se ejecuta desde la **raíz del repositorio**: `python3 apis/<nombre>/tests/test_production.py`
+* Retorna **exit code 0** si todas las pruebas pasan, exit code **1** si alguna falla.
+* El reporte `TEST_RESULTS.md` debe estar **commiteado en Git** junto con los cambios del microservicio para trazabilidad histórica.
+* **Prohibido mockear**: todas las pruebas llaman a los endpoints de Cloud Run reales. Los mocks de unittest/pytest quedan limitados a pruebas unitarias de lógica interna compleja (parsers, helpers), no de integración.
+
+#### 7.2.5. Integración en el Definition of Done
+
+El `TEST_RESULTS.md` actualizado con todas las pruebas en verde es un entregable **obligatorio** para que un microservicio se considere terminado (ver Sección 9). Ningún commit de feature o fix en producción se acepta sin un reporte actualizado y con exit code 0.
 
 ## 8. Reglas de Git y Documentación Viva (Anti Gravity)
 
