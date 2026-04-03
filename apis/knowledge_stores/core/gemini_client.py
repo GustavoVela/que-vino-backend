@@ -75,17 +75,21 @@ def create_store(display_name: str) -> str:
         logging.error(f"Error al crear el repositorio '{display_name}': {str(e)}")
         raise e
 
-def delete_store(store_name: str):
+def delete_store(store_name: str, force: bool = False):
     """
-    Elimina permanentemente un repositorio de búsqueda y todos sus documentos indexados.
-    
+    Elimina permanentemente un repositorio de búsqueda.
+
     Args:
-        store_name (str): ID de recurso completo del repositorio a eliminar.
+        store_name (str): ID de recurso completo del repositorio.
+        force (bool): Si es True, pasa force=True al SDK de Gemini para que
+                      elimine todos los documentos y chunks en cascada.
+                      Usar cuando el store no está vacío.
     """
     try:
-        client.file_search_stores.delete(name=store_name)
+        config = types.DeleteFileSearchStoreConfig(force=force) if force else None
+        client.file_search_stores.delete(name=store_name, config=config)
     except Exception as e:
-        logging.error(f"Error al eliminar el repositorio Gemini {store_name}: {str(e)}")
+        logging.error(f"Error al eliminar el repositorio Gemini {store_name} (force={force}): {str(e)}")
         raise e
 
 def list_documents(store_name: str) -> List[dict]:
@@ -115,12 +119,20 @@ def list_documents(store_name: str) -> List[dict]:
 def delete_document(doc_name: str):
     """
     Elimina un documento individual del índice de búsqueda.
-    
+
+    Usa force=True en el SDK para que Gemini elimine automáticamente todos los
+    chunks/sub-recursos del documento antes de borrarlo. Sin este flag, Gemini
+    retorna FAILED_PRECONDITION ("Cannot delete non-empty Document").
+
     Args:
-        doc_name (str): ID de recurso completo del documento.
+        doc_name (str): ID de recurso completo del documento
+                        (ej: fileSearchStores/{store_id}/documents/{doc_id}).
     """
     try:
-        client.file_search_stores.documents.delete(name=doc_name)
+        client.file_search_stores.documents.delete(
+            name=doc_name,
+            config=types.DeleteDocumentConfig(force=True)
+        )
     except Exception as e:
         logging.error(f"Error al eliminar el documento {doc_name}: {str(e)}")
         raise e

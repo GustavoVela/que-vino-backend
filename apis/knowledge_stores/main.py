@@ -137,29 +137,10 @@ async def remove_store(
     full_store_name = store_id if store_id.startswith("fileSearchStores/") else f"fileSearchStores/{store_id}"
 
     try:
-        if force:
-            # Cascade delete: primero eliminamos todos los documentos del store
-            logging.info(f"[remove_store] force=true — eliminando documentos del store {full_store_name}")
-            try:
-                documents = list_documents(full_store_name)
-            except Exception as list_err:
-                logging.error(f"[remove_store] Error al listar documentos para cascade delete: {list_err}")
-                raise HTTPException(
-                    status_code=500,
-                    detail={"error_code": "LIST_DOCUMENTS_FAILED", "message": str(list_err), "detail": None}
-                )
-
-            for doc in documents:
-                # El campo 'id' ya contiene el resource name completo del documento
-                doc_name = doc.get("id", "")
-                if doc_name:
-                    try:
-                        delete_document(doc_name)
-                        logging.info(f"[remove_store] Documento eliminado: {doc_name}")
-                    except Exception as del_err:
-                        logging.warning(f"[remove_store] No se pudo eliminar el documento {doc_name}: {del_err}")
-
-        delete_store(full_store_name)
+        # Gemini soporta force=True de forma nativa en DeleteFileSearchStoreConfig.
+        # Esto elimina documentos y chunks en cascada sin necesidad de un loop manual.
+        logging.info(f"[remove_store] Eliminando store {full_store_name} (force={force})")
+        delete_store(full_store_name, force=force)
         background_tasks.add_task(log_api_transaction_async, "UNKNOWN", store_id, user_id, "DELETE_STORE", "DELETE")
 
     except HTTPException:
