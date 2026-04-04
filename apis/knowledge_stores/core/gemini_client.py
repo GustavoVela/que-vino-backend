@@ -103,25 +103,32 @@ def list_documents(store_name: str) -> List[dict]:
         List[dict]: Listado de documentos con su nombre de visualización y metadatos.
     """
     try:
-        # En el SDK 1.x, el parent es el nombre completo del store
+        # En el SDK 1.x (2026), el parent es el nombre completo del store
         docs = client.file_search_stores.documents.list(parent=store_name)
         
         results = []
         for d in docs:
             # Reconstruir el diccionario de metadata desde el formato del SDK
             meta_dict = {}
-            # El SDK puede devolverlo como 'custom_metadata' o 'metadata' dependiendo de la versión
-            raw_meta = getattr(d, 'custom_metadata', getattr(d, 'metadata', []))
+            # El SDK puede devolverlo como 'custom_metadata' o 'metadata' dependiendo de la versión.
+            # Aseguramos que sea una lista (incluso si es None)
+            raw_meta = getattr(d, 'custom_metadata', None) or getattr(d, 'metadata', None) or []
             
             if isinstance(raw_meta, list):
                 for m in raw_meta:
-                    if hasattr(m, 'key'):
-                        if hasattr(m, 'string_value') and m.string_value is not None:
-                            meta_dict[m.key] = m.string_value
-                        elif hasattr(m, 'numeric_value') and m.numeric_value is not None:
-                            meta_dict[m.key] = m.numeric_value
-                        elif hasattr(m, 'string_list_value') and m.string_list_value is not None:
-                            meta_dict[m.key] = getattr(m.string_list_value, 'values', [])
+                    m_key = getattr(m, 'key', None)
+                    if not m_key:
+                        continue
+                    
+                    # Extraer el valor según su tipo de dato almacenado (CustomMetadata)
+                    if getattr(m, 'string_value', None) is not None:
+                        meta_dict[m_key] = m.string_value
+                    elif getattr(m, 'numeric_value', None) is not None:
+                        meta_dict[m_key] = m.numeric_value
+                    elif getattr(m, 'string_list_value', None) is not None:
+                        # Extraer lista de strings si existe el atributo values
+                        vals = getattr(m.string_list_value, 'values', [])
+                        meta_dict[m_key] = vals
             
             results.append({
                 "id": d.name, 

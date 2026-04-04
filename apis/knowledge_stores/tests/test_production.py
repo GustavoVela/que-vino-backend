@@ -177,18 +177,17 @@ def main():
     else:
         print("  ⚠️  Sin stores disponibles — test de archivos omitido")
 
-    # 5. Sync con bucket inexistente → estructura de respuesta correcta
+    # 5. Sync con bucket 'grapes' (Usa el Resolver Inteligente)
     test(
-        "POST /knowledge-stores/sync — Sincronizar bucket (bucket vacío)",
+        "POST /knowledge-stores/sync — Sincronizar 'grapes' (Bucket Resolver)",
         "POST", "/knowledge-stores/sync",
         token=token,
         body={
-            "bucket_name": "que-vino-23032025-audios",
-            "prefix":      "test-integration/",
-            "store_name":  "test-integration-store"
+            "bucket_name": "grapes",
+            "store_name":  "grapes"
         },
         expected_status=200,
-        timeout=60
+        timeout=120
     )
 
     # 6. Sin token → 401

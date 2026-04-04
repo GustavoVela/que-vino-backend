@@ -13,9 +13,9 @@ Su objetivo es permitir que los agentes de IA accedan a bases de conocimiento pr
 ## 🚀 Funcionalidades Principales
 
 1. **Mirroring Inteligente (Sync Service)**: Sincronización incremental desde GCS hacia Gemini con control de concurrencia (Semaphore 10).
-   - Detección de deltas (comparación de tamaño de archivos).
+   - Detección de deltas (comparación de tamaño de archivos para omitir redundancias).
    - Limpieza automática de huérfanos (Orphan deletion).
-   - Manejo de metadatos personalizados (bucket origen, tamaño exacto, fecha de carga).
+   - Manejo de metadatos personalizados persistentes (bucket origen, tamaño exacto, fecha de carga).
 2. **Gestión de Stores**: Creación, listado y eliminación de repositorios lógicos de búsqueda.
 3. **Auditoría BigQuery**: Cada transacción se registra automáticamente en el dataset `src_api_transactions`.
 
@@ -59,25 +59,30 @@ curl "https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app/knowledge-stores"
 ---
 
 ### 3. Listar Documentos en un Store
-
-**GET** `/knowledge-stores/{store_id}/files`
-
-```bash
-# Usando el ID corto del store
-curl "https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app/knowledge-stores/grapes-bpdsyaih31jh/files" \
-  -H "Authorization: Bearer <ID_TOKEN>"
-```
-
-**Respuesta (200)**:
-```json
-[
-  {
-    "id": "fileSearchStores/grapes-bpdsyaih31jh/documents/grapescabernet-sauvignonmd-xxx",
-    "display_name": "grapes/Cabernet Sauvignon.md",
-    "metadata": {}
-  }
-]
-```
+ 
+ **GET** `/knowledge-stores/{store_id}/files`
+ 
+ ```bash
+ # Usando el ID corto del store
+ curl "https://quevino-knowledge-stores-2lkhisz2aa-uc.a.run.app/knowledge-stores/grapes-bpdsyaih31jh/files" \
+   -H "Authorization: Bearer <ID_TOKEN>"
+ ```
+ 
+ **Respuesta (200)**:
+ ```json
+ [
+   {
+     "id": "fileSearchStores/grapes-bpdsyaih31jh/documents/grapescabernet-sauvignonmd-xxx",
+     "display_name": "grapes/Cabernet Sauvignon.md",
+     "metadata": {
+       "bucket_name": "mi-bucket-gcs",
+       "original_filename": "grapes/Cabernet Sauvignon.md",
+       "exact_size_bytes": "16334",
+       "upload_date": "2026-04-03T23:53:38.517890"
+     }
+   }
+ ]
+ ```
 
 ---
 

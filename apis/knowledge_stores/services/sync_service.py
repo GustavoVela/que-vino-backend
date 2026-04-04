@@ -158,11 +158,11 @@ async def sync_bucket_to_gemini(bucket_name: str, user_id: str, transaction_id: 
         gemini_items = gemini_client.list_documents(store_id)
         gemini_dict = {}
         for item in gemini_items:
-            # Extracción de metadatos custom para validación de integridad
-            meta = getattr(item, 'metadata', {})
+            # Extracción de metadatos del diccionario retornado por gemini_client (no un objeto)
+            meta = item.get("metadata", {})
             size_str = meta.get("exact_size_bytes", "-1")
             gemini_dict[item["display_name"]] = {
-                "id": item["name"] if hasattr(item, 'name') else item.get("id"),
+                "id": item.get("id"),
                 "size": int(size_str)
             }
         
